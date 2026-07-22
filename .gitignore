@@ -1,0 +1,10 @@
+﻿**/bin/
+**/obj/
+
+src/BandPortal.Web/App_Data/*.json
+
+src/BandPortal.Client/.npm-cache/
+src/BandPortal.Client/dist/
+src/BandPortal.Client/node_modules/
+src/BandPortal.Client/*.tsbuildinfo
+src/BandPortal.Client/vite.config.d.ts

@@ -1,0 +1,8 @@
+﻿<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BandPortal.Domain/BandPortal.Domain.csproj" />
+    <Project Path="src/BandPortal.Repository/BandPortal.Repository.csproj" />
+    <Project Path="src/BandPortal.Service/BandPortal.Service.csproj" />
+    <Project Path="src/BandPortal.Web/BandPortal.Web.csproj" />
+  </Folder>
+</Solution>
