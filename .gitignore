@@ -1,10 +1,39 @@
-﻿**/bin/
+# .NET
+**/bin/
 **/obj/
+*.user
+*.suo
+*.rsuser
 
-src/BandPortal.Web/App_Data/*.json
-
-src/BandPortal.Client/.npm-cache/
-src/BandPortal.Client/dist/
+# Frontend
 src/BandPortal.Client/node_modules/
+src/BandPortal.Client/dist/
+src/BandPortal.Client/.npm-cache/
 src/BandPortal.Client/*.tsbuildinfo
 src/BandPortal.Client/vite.config.d.ts
+
+# Local app data and uploads
+src/BandPortal.Web/App_Data/*.json
+src/BandPortal.Web/App_Data/uploads/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# IDE/editor files
+.vs/
+.vscode/
+.idea/
+
+# Logs and OS files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Local Docker/database folders if created
+pgdata/
+postgres-data/
