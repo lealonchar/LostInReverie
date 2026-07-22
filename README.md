@@ -1,68 +1,51 @@
-﻿# Lost In Reverie
+# Lost In Reverie Website
 
-A .NET + React website for Lost In Reverie with public tabs and an admin area. It starts with no shows, posts, merch, or orders so the real content can be added from the admin UI.
+Lost In Reverie is a band website with a public fan-facing page and a separate admin management panel. The site is organized around shows, news, music releases, merch, and order requests.
 
-## Structure
+## Public Page
 
-- `src/BandPortal.Domain` - domain entities such as shows, posts, merch, and orders.
-- `src/BandPortal.Repository` - data access with PostgreSQL support and JSON fallback.
-- `src/BandPortal.Service` - business logic for shows, posts, merch, stock, and orders.
-- `src/BandPortal.Web` - ASP.NET Core API endpoints and admin authorization.
-- `src/BandPortal.Client` - React + Vite frontend.
-- `src/BandPortal.Web/App_Data/uploads` - uploaded merch images when running the API locally.
+The public page opens with the Lost In Reverie logo and a dark red visual theme. Navigation is split into four tabs:
 
-## Main Features
+- **Shows** lists upcoming shows by date, time, and location. A show title can be added, but it is not required.
+- **News** lists published band posts and announcements.
+- **Music** lists released albums, EPs, and singles with cover art, release type, and year. Opening a release shows listening links and an embedded player when supported by the platform link.
+- **Merch** shows active merch items in a clean grid. Opening an item shows its gallery, details, available sizes, stock-aware size selection, and an order request button.
 
-- Public tabs for upcoming shows, news/posts, and merch.
-- Admin panel for adding/removing shows.
-- Admin panel for adding/removing posts.
-- Admin panel for adding/editing/removing merch items.
-- Drag-and-drop merch image uploads from the admin panel, with multiple images per item.
-- Fixed S to XXL shirt stock counts, editable by admin.
-- Public order request form with no payment integration.
-- Admin order list with order status updates.
+## Admin Panel
 
-## Run Locally
+The admin panel is separate from the regular page and is opened through the admin route. It requires authorization before the management panel is shown.
 
-With Docker:
+Admin sections:
 
-```powershell
-docker compose up --build
-```
+- **Shows** adds and removes upcoming shows.
+- **Posts** adds and removes news posts.
+- **Music** adds and removes music releases, including cover uploads, year, release type, main listening link, optional embed link, and platform links.
+- **Merch** adds, edits, and removes merch items. Merch supports local image uploads, multiple images, drag-to-reorder galleries, fixed T-shirt sizes from S to XXL, and stock per size.
+- **Orders** shows order requests with item image, item name, selected size, customer information, and order details. Orders start as pending, can be marked completed, and can be deleted if needed.
 
-Open `http://localhost:5173`.
+## Merch Orders
 
-The API runs on `http://localhost:5000`, PostgreSQL runs on `localhost:5432`, and uploaded merch images are stored in the `uploads` Docker volume.
+The site does not take payments directly. Merch checkout is an order request flow:
 
-Without Docker:
+- Visitors choose an item and size.
+- Sizes with zero stock are disabled.
+- The visitor submits their name and at least one contact method.
+- Admin can review the order later.
+- Completing an order lowers stock for the ordered size.
 
-In one terminal:
+## Music Releases
 
-```powershell
-cd src/BandPortal.Web
-dotnet run
-```
+Music releases are designed to link out to existing listening platforms. Spotify and YouTube links can be displayed as embedded players where possible. Other platforms can still be added as buttons, such as Bandcamp, Apple Music, SoundCloud, or any other release link.
 
-In another terminal:
+## Data Managed By The Site
 
-```powershell
-cd src/BandPortal.Client
-npm install
-npm run dev
-```
+The site currently manages:
 
-Open `http://localhost:5173`.
+- Shows
+- News posts
+- Music releases
+- Merch items and images
+- Merch stock by size
+- Order requests
 
-The development admin token is `dev-band-admin`. Change it in `src/BandPortal.Web/appsettings.Development.json`.
-
-## Configuration
-
-- `ConnectionStrings:Default` enables PostgreSQL persistence. If it is blank, the API falls back to the local JSON file.
-- `LostInReverie:AdminToken` controls admin API access.
-- `VITE_API_BASE_URL` can point the frontend at a different API URL.
-- `VITE_CURRENCY` controls store currency formatting. It defaults to `MKD` and displays as `den`.
-
-## Hosting Notes
-
-For Azure, the Docker setup is a good local packaging step. A student-plan deployment will usually work best with the frontend and API hosted as containers or app services, Azure Database for PostgreSQL for the database, and Azure Blob Storage for uploaded images if you need durable production file storage.
-
+Uploaded images are used for merch galleries and music release covers.
