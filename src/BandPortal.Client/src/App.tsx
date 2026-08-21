@@ -1,18 +1,20 @@
 import { FormEvent, useEffect, useState } from "react";
 import { getAdminMerch } from "./api/client";
+import AboutPage from "./pages/AboutPage";
 import AdminPage from "./pages/AdminPage";
 import MerchPage from "./pages/MerchPage";
 import MusicPage from "./pages/MusicPage";
 import NewsPage from "./pages/NewsPage";
 import ShowsPage from "./pages/ShowsPage";
 
-type Tab = "shows" | "news" | "music" | "merch";
+type Tab = "shows" | "news" | "music" | "merch" | "about";
 
 const tabs: Array<{ id: Tab; label: string }> = [
   { id: "shows", label: "Shows" },
   { id: "news", label: "News" },
   { id: "music", label: "Music" },
-  { id: "merch", label: "Merch" }
+  { id: "merch", label: "Merch" },
+  { id: "about", label: "About" }
 ];
 
 function getSavedAdminToken() {
@@ -84,6 +86,11 @@ export default function App() {
     localStorage.removeItem("bandAdminToken");
   }
 
+  function logoutAdmin() {
+    lockAdmin();
+    closeAdminPage();
+  }
+
   async function submitAdminUnlock(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -119,6 +126,7 @@ export default function App() {
             adminToken={adminToken}
             onAuthorizationLost={lockAdmin}
             onBack={closeAdminPage}
+            onLogout={logoutAdmin}
           />
         </main>
       </div>
@@ -157,6 +165,7 @@ export default function App() {
         {activeTab === "news" && <NewsPage />}
         {activeTab === "music" && <MusicPage />}
         {activeTab === "merch" && <MerchPage />}
+        {activeTab === "about" && <AboutPage />}
       </main>
 
       {isAdminOpen && !hasAdminAccess && (

@@ -4,6 +4,8 @@ namespace BandPortal.Repository.Data;
 
 public sealed class BandDatabase
 {
+    public AboutContent About { get; set; } = new();
+
     public List<Show> Shows { get; set; } = [];
 
     public List<NewsPost> News { get; set; } = [];

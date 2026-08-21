@@ -10,6 +10,7 @@ import {
   deleteNewsPost,
   deleteOrder,
   deleteShow,
+  getAdminAbout,
   getAdminMerch,
   getAdminMusic,
   getAdminOrders,
@@ -17,13 +18,37 @@ import {
   getShows,
   uploadMerchImage,
   updateMerchItem,
+  updateAbout,
+  updateMusicRelease,
+  updateNewsPost,
+  updateShow,
+  type AboutInput,
   type MerchInput,
   type MusicInput
 } from "../api/client";
 import { formatDate, formatMoney } from "../format";
 import type { MerchItem, MusicRelease, NewsPost, OrderLine, OrderRequest, Show } from "../types";
 
-type AdminTab = "shows" | "posts" | "music" | "merch" | "orders";
+type AdminTab = "about" | "shows" | "posts" | "music" | "merch" | "orders";
+
+type AboutImageDraft = {
+  id?: string;
+  imageUrl: string;
+};
+
+type ContactForm = {
+  phone: string;
+  email: string;
+  instagramUrl: string;
+  youTubeUrl: string;
+  spotifyUrl: string;
+};
+
+type AboutForm = {
+  body: string;
+  images: AboutImageDraft[];
+  contact: ContactForm;
+};
 
 type MerchVariantDraft = {
   id?: string;
@@ -44,7 +69,28 @@ type MerchDraft = {
   variants: MerchVariantDraft[];
 };
 
+type ShowForm = {
+  id?: string;
+  title: string;
+  venue: string;
+  city: string;
+  startsAt: string;
+  ticketUrl: string;
+  notes: string;
+  isSoldOut: boolean;
+};
+
+type PostForm = {
+  id?: string;
+  title: string;
+  category: string;
+  body: string;
+  linkUrl: string;
+  isPinned: boolean;
+};
+
 const adminTabs: Array<{ id: AdminTab; label: string }> = [
+  { id: "about", label: "About" },
   { id: "shows", label: "Shows" },
   { id: "posts", label: "Posts" },
   { id: "music", label: "Music" },
@@ -52,12 +98,36 @@ const adminTabs: Array<{ id: AdminTab; label: string }> = [
   { id: "orders", label: "Orders" }
 ];
 
+const imageAccept = ".jpg,.jpeg,.png,.webp,.gif,.avif";
+const acceptedImageExtensions = imageAccept.split(",");
+const maxImageBytes = 20 * 1024 * 1024;
 const merchSizes = ["S", "M", "L", "XL", "XXL"];
+const musicPlatforms = [
+  "Spotify",
+  "YouTube Music",
+  "Apple Music",
+  "Bandcamp",
+  "SoundCloud",
+  "Deezer",
+  "Tidal"
+] as const;
+
+type MusicPlatformName = (typeof musicPlatforms)[number];
+
+type MusicForm = {
+  id?: string;
+  title: string;
+  releaseType: string;
+  releaseYear: string;
+  coverImageUrl: string;
+  platformLinks: Record<MusicPlatformName, string>;
+};
 
 type AdminPageProps = {
   adminToken: string;
   onAuthorizationLost?: (message?: string) => void;
   onBack: () => void;
+  onLogout: () => void;
 };
 
 function normalizeMerchVariants(
@@ -205,27 +275,207 @@ function showHeading(show: Show) {
   return show.title.trim() || showLocation(show);
 }
 
-function musicLinksFromText(value: string): MusicInput["links"] {
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [platform, ...urlParts] = line.split("|").map((part) => part.trim());
-      const url = urlParts.join("|");
+function emptyAboutForm(): AboutForm {
+  return {
+    body: "",
+    images: [],
+    contact: {
+      phone: "",
+      email: "",
+      instagramUrl: "",
+      youTubeUrl: "",
+      spotifyUrl: ""
+    }
+  };
+}
 
-      return {
-        platform: platform || "Link",
-        url: url || platform
-      };
-    })
-    .filter((link) => link.url);
+function aboutPayloadFromForm(form: AboutForm): AboutInput {
+  return {
+    body: form.body,
+    images: form.images
+      .map((image) => ({
+        id: image.id,
+        imageUrl: image.imageUrl.trim()
+      }))
+      .filter((image) => image.imageUrl),
+    contact: {
+      phone: form.contact.phone.trim(),
+      email: form.contact.email.trim(),
+      instagramUrl: form.contact.instagramUrl.trim(),
+      youTubeUrl: form.contact.youTubeUrl.trim(),
+      spotifyUrl: form.contact.spotifyUrl.trim()
+    }
+  };
+}
+
+function fileExtension(fileName: string) {
+  const extensionStart = fileName.lastIndexOf(".");
+  return extensionStart >= 0 ? fileName.slice(extensionStart).toLowerCase() : "";
+}
+
+function isAcceptedImage(file: File) {
+  return acceptedImageExtensions.includes(fileExtension(file.name));
+}
+
+function fileSizeLabel(bytes: number) {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function uploadFailureMessage(result: PromiseSettledResult<unknown>, file: File) {
+  if (result.status === "fulfilled") {
+    return "";
+  }
+
+  const reason = result.reason instanceof Error && result.reason.message
+    ? result.reason.message
+    : "upload failed";
+
+  return `${file.name} (${reason})`;
+}
+
+function dateTimeLocalValue(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const pad = (part: number) => String(part).padStart(2, "0");
+
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join("-") + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function emptyShowForm(): ShowForm {
+  return {
+    title: "",
+    venue: "",
+    city: "",
+    startsAt: "",
+    ticketUrl: "",
+    notes: "",
+    isSoldOut: false
+  };
+}
+
+function showFormFromShow(show: Show): ShowForm {
+  return {
+    id: show.id,
+    title: show.title,
+    venue: show.venue,
+    city: show.city,
+    startsAt: dateTimeLocalValue(show.startsAt),
+    ticketUrl: show.ticketUrl ?? "",
+    notes: show.notes,
+    isSoldOut: show.isSoldOut
+  };
+}
+
+function emptyPostForm(): PostForm {
+  return {
+    title: "",
+    category: "News",
+    body: "",
+    linkUrl: "",
+    isPinned: false
+  };
+}
+
+function postFormFromPost(post: NewsPost): PostForm {
+  return {
+    id: post.id,
+    title: post.title,
+    category: post.category,
+    body: post.body,
+    linkUrl: post.linkUrl ?? "",
+    isPinned: post.isPinned
+  };
+}
+
+function emptyPlatformLinks(): Record<MusicPlatformName, string> {
+  return musicPlatforms.reduce(
+    (links, platform) => ({ ...links, [platform]: "" }),
+    {} as Record<MusicPlatformName, string>
+  );
+}
+
+function emptyMusicForm(): MusicForm {
+  return {
+    title: "",
+    releaseType: "Album",
+    releaseYear: new Date().getFullYear().toString(),
+    coverImageUrl: "",
+    platformLinks: emptyPlatformLinks()
+  };
+}
+
+function platformKey(value: string): MusicPlatformName | null {
+  const normalized = value.toLowerCase();
+
+  if (normalized.includes("youtube")) {
+    return "YouTube Music";
+  }
+
+  return (
+    musicPlatforms.find((platform) =>
+      normalized.includes(platform.toLowerCase())
+    ) ?? null
+  );
+}
+
+function musicFormFromRelease(release: MusicRelease): MusicForm {
+  const platformLinks = emptyPlatformLinks();
+
+  release.links.forEach((link) => {
+    const key = platformKey(link.platform) ?? platformKey(link.url);
+
+    if (key) {
+      platformLinks[key] = link.url;
+    }
+  });
+
+  if (!platformLinks.Spotify && platformKey(release.listenUrl) === "Spotify") {
+    platformLinks.Spotify = release.listenUrl;
+  }
+
+  return {
+    id: release.id,
+    title: release.title,
+    releaseType: release.releaseType,
+    releaseYear: String(release.releaseYear),
+    coverImageUrl: release.coverImageUrl,
+    platformLinks
+  };
+}
+
+function musicPayloadFromForm(form: MusicForm): MusicInput {
+  const spotifyUrl = form.platformLinks.Spotify.trim();
+
+  return {
+    title: form.title.trim(),
+    releaseType: form.releaseType,
+    releaseYear: Number(form.releaseYear),
+    coverImageUrl: form.coverImageUrl.trim(),
+    listenUrl: spotifyUrl,
+    embedUrl: "",
+    isPublished: true,
+    links: musicPlatforms
+      .map((platform) => ({
+        platform,
+        url: form.platformLinks[platform].trim()
+      }))
+      .filter((link) => link.url)
+  };
 }
 
 export default function AdminPage({
   adminToken,
   onAuthorizationLost,
-  onBack
+  onBack,
+  onLogout
 }: AdminPageProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>("shows");
   const [shows, setShows] = useState<Show[]>([]);
@@ -239,34 +489,16 @@ export default function AdminPage({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const [showForm, setShowForm] = useState({
-    title: "",
-    venue: "",
-    city: "",
-    startsAt: "",
-    ticketUrl: "",
-    notes: "",
-    isSoldOut: false
-  });
-  const [postForm, setPostForm] = useState({
-    title: "",
-    category: "News",
-    body: "",
-    isPinned: false
-  });
-  const [musicForm, setMusicForm] = useState({
-    title: "",
-    releaseType: "Album",
-    releaseYear: new Date().getFullYear().toString(),
-    coverImageUrl: "",
-    listenUrl: "",
-    embedUrl: "",
-    linksText: "",
-    isPublished: true
-  });
+  const [aboutForm, setAboutForm] = useState<AboutForm>(emptyAboutForm);
+  const [showForm, setShowForm] = useState<ShowForm>(emptyShowForm);
+  const [postForm, setPostForm] = useState<PostForm>(emptyPostForm);
+  const [musicForm, setMusicForm] = useState<MusicForm>(emptyMusicForm);
   const [merchDraft, setMerchDraft] = useState<MerchDraft>(emptyMerchDraft);
 
+  const editingShow = Boolean(showForm.id);
+  const editingPost = Boolean(postForm.id);
   const editingMerch = Boolean(merchDraft.id);
+  const editingMusic = Boolean(musicForm.id);
 
   async function refreshPublicData() {
     const [nextShows, nextPosts] = await Promise.all([getShows(), getNews()]);
@@ -277,11 +509,17 @@ export default function AdminPage({
   async function refreshAdminData(currentToken = adminToken) {
     const nextToken = currentToken.trim();
 
-    const [nextMusic, nextMerch, nextOrders] = await Promise.all([
+    const [nextAbout, nextMusic, nextMerch, nextOrders] = await Promise.all([
+      getAdminAbout(nextToken),
       getAdminMusic(nextToken),
       getAdminMerch(nextToken),
       getAdminOrders(nextToken)
     ]);
+    setAboutForm({
+      body: nextAbout.body,
+      images: nextAbout.images,
+      contact: nextAbout.contact
+    });
     setMusic(nextMusic);
     setMerch(nextMerch);
     setOrders(nextOrders);
@@ -314,29 +552,155 @@ export default function AdminPage({
     void refreshAll(adminToken);
   }, [adminToken]);
 
+  async function submitAbout(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+
+    try {
+      const nextAbout = await updateAbout(adminToken.trim(), aboutPayloadFromForm(aboutForm));
+      setAboutForm({
+        body: nextAbout.body,
+        images: nextAbout.images,
+        contact: nextAbout.contact
+      });
+      setMessage("About page saved.");
+      await refreshAll();
+    } catch (err) {
+      handleAdminError(err, "Could not save about page.");
+    }
+  }
+
+  async function uploadAboutImages(files?: FileList | File[]) {
+    const imageFiles = Array.from(files ?? []);
+
+    if (imageFiles.length === 0) {
+      return;
+    }
+
+    setError("");
+    setMessage("");
+
+    try {
+      const validFiles = imageFiles.filter(
+        (file) => isAcceptedImage(file) && file.size <= maxImageBytes
+      );
+      const skippedFiles = imageFiles.filter((file) => !isAcceptedImage(file));
+      const oversizedFiles = imageFiles.filter(
+        (file) => isAcceptedImage(file) && file.size > maxImageBytes
+      );
+
+      if (validFiles.length === 0) {
+        const oversizedMessage = oversizedFiles.length
+          ? ` Too large: ${oversizedFiles
+              .map((file) => `${file.name} is ${fileSizeLabel(file.size)}`)
+              .join(", ")}.`
+          : "";
+        setError(`Use JPG, PNG, WEBP, GIF, or AVIF images under 20 MB.${oversizedMessage}`);
+        return;
+      }
+
+      const uploadResults = await Promise.allSettled(
+        validFiles.map((file) => uploadMerchImage(adminToken.trim(), file))
+      );
+      const uploads = uploadResults
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => result.value);
+      const failedFiles = uploadResults
+        .map((result, index) => uploadFailureMessage(result, validFiles[index]))
+        .filter(Boolean);
+
+      if (uploads.length === 0) {
+        setError("No images uploaded. Use JPG, PNG, WEBP, GIF, or AVIF images under 20 MB.");
+        return;
+      }
+
+      setAboutForm((current) => ({
+        ...current,
+        images: current.images.concat(
+          uploads.map((upload) => ({ imageUrl: upload.imageUrl }))
+        )
+      }));
+      const uploadedMessage =
+        uploads.length === 1 ? "About image uploaded." : `${uploads.length} about images uploaded.`;
+      const skippedMessage = skippedFiles.length
+        ? ` Skipped unsupported files: ${skippedFiles.map((file) => file.name).join(", ")}.`
+        : "";
+      const oversizedMessage = oversizedFiles.length
+        ? ` Too large: ${oversizedFiles
+            .map((file) => `${file.name} is ${fileSizeLabel(file.size)}`)
+            .join(", ")}.`
+        : "";
+      const failedMessage = failedFiles.length
+        ? ` Could not upload: ${failedFiles.join(", ")}.`
+        : "";
+      setMessage(`${uploadedMessage}${skippedMessage}${oversizedMessage}${failedMessage}`);
+    } catch (err) {
+      handleAdminError(err, "Could not upload about images.");
+    }
+  }
+
+  function removeAboutImage(index: number) {
+    setAboutForm((current) => ({
+      ...current,
+      images: current.images.filter((_, imageIndex) => imageIndex !== index)
+    }));
+  }
+
+  function reorderAboutImage(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) {
+      return;
+    }
+
+    setAboutForm((current) => {
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.images.length ||
+        toIndex >= current.images.length
+      ) {
+        return current;
+      }
+
+      const images = [...current.images];
+      const [movedImage] = images.splice(fromIndex, 1);
+      images.splice(toIndex, 0, movedImage);
+
+      return {
+        ...current,
+        images
+      };
+    });
+  }
+
   async function submitShow(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setMessage("");
 
     try {
-      await createShow(adminToken.trim(), {
-        ...showForm,
-        startsAt: new Date(showForm.startsAt).toISOString()
-      });
-      setShowForm({
-        title: "",
-        venue: "",
-        city: "",
-        startsAt: "",
-        ticketUrl: "",
-        notes: "",
-        isSoldOut: false
-      });
-      setMessage("Show added.");
+      const payload = {
+        title: showForm.title,
+        venue: showForm.venue,
+        city: showForm.city,
+        startsAt: new Date(showForm.startsAt).toISOString(),
+        ticketUrl: showForm.ticketUrl,
+        notes: showForm.notes,
+        isSoldOut: showForm.isSoldOut
+      };
+
+      if (showForm.id) {
+        await updateShow(adminToken.trim(), showForm.id, payload);
+        setMessage("Show saved.");
+      } else {
+        await createShow(adminToken.trim(), payload);
+        setMessage("Show added.");
+      }
+
+      setShowForm(emptyShowForm());
       await refreshAll();
     } catch (err) {
-      handleAdminError(err, "Could not add show.");
+      handleAdminError(err, "Could not save show.");
     }
   }
 
@@ -346,17 +710,26 @@ export default function AdminPage({
     setMessage("");
 
     try {
-      await createNewsPost(adminToken.trim(), postForm);
-      setPostForm({
-        title: "",
-        category: "News",
-        body: "",
-        isPinned: false
-      });
-      setMessage("Post added.");
+      const payload = {
+        title: postForm.title,
+        category: postForm.category,
+        body: postForm.body,
+        linkUrl: postForm.linkUrl,
+        isPinned: postForm.isPinned
+      };
+
+      if (postForm.id) {
+        await updateNewsPost(adminToken.trim(), postForm.id, payload);
+        setMessage("Post saved.");
+      } else {
+        await createNewsPost(adminToken.trim(), payload);
+        setMessage("Post added.");
+      }
+
+      setPostForm(emptyPostForm());
       await refreshAll();
     } catch (err) {
-      handleAdminError(err, "Could not add post.");
+      handleAdminError(err, "Could not save post.");
     }
   }
 
@@ -366,30 +739,20 @@ export default function AdminPage({
     setMessage("");
 
     try {
-      await createMusicRelease(adminToken.trim(), {
-        title: musicForm.title.trim(),
-        releaseType: musicForm.releaseType,
-        releaseYear: Number(musicForm.releaseYear),
-        coverImageUrl: musicForm.coverImageUrl.trim(),
-        listenUrl: musicForm.listenUrl.trim(),
-        embedUrl: musicForm.embedUrl.trim(),
-        isPublished: musicForm.isPublished,
-        links: musicLinksFromText(musicForm.linksText)
-      });
-      setMusicForm({
-        title: "",
-        releaseType: "Album",
-        releaseYear: new Date().getFullYear().toString(),
-        coverImageUrl: "",
-        listenUrl: "",
-        embedUrl: "",
-        linksText: "",
-        isPublished: true
-      });
-      setMessage("Music release added.");
+      const payload = musicPayloadFromForm(musicForm);
+
+      if (musicForm.id) {
+        await updateMusicRelease(adminToken.trim(), musicForm.id, payload);
+        setMessage("Music release saved.");
+      } else {
+        await createMusicRelease(adminToken.trim(), payload);
+        setMessage("Music release added.");
+      }
+
+      setMusicForm(emptyMusicForm());
       await refreshAll();
     } catch (err) {
-      handleAdminError(err, "Could not add music release.");
+      handleAdminError(err, "Could not save music release.");
     }
   }
 
@@ -420,6 +783,9 @@ export default function AdminPage({
     try {
       await deleteShow(adminToken.trim(), id);
       setMessage("Show removed.");
+      setShowForm((current) =>
+        current.id === id ? emptyShowForm() : current
+      );
       await refreshAll();
     } catch (err) {
       handleAdminError(err, "Could not remove show.");
@@ -430,6 +796,9 @@ export default function AdminPage({
     try {
       await deleteNewsPost(adminToken.trim(), id);
       setMessage("Post removed.");
+      setPostForm((current) =>
+        current.id === id ? emptyPostForm() : current
+      );
       await refreshAll();
     } catch (err) {
       handleAdminError(err, "Could not remove post.");
@@ -440,6 +809,9 @@ export default function AdminPage({
     try {
       await deleteMusicRelease(adminToken.trim(), id);
       setMessage("Music release removed.");
+      setMusicForm((current) =>
+        current.id === id ? emptyMusicForm() : current
+      );
       await refreshAll();
     } catch (err) {
       handleAdminError(err, "Could not remove music release.");
@@ -494,6 +866,16 @@ export default function AdminPage({
     setMessage("");
 
     try {
+      if (!isAcceptedImage(file)) {
+        setError("Use a JPG, PNG, WEBP, GIF, or AVIF image.");
+        return;
+      }
+
+      if (file.size > maxImageBytes) {
+        setError(`${file.name} is ${fileSizeLabel(file.size)}. Use an image under 20 MB.`);
+        return;
+      }
+
       const upload = await uploadMerchImage(adminToken.trim(), file);
       setMusicForm((current) => ({
         ...current,
@@ -528,9 +910,38 @@ export default function AdminPage({
     setMessage("");
 
     try {
-      const uploads = await Promise.all(
-        imageFiles.map((file) => uploadMerchImage(adminToken.trim(), file))
+      const validFiles = imageFiles.filter(
+        (file) => isAcceptedImage(file) && file.size <= maxImageBytes
       );
+      const skippedFiles = imageFiles.filter((file) => !isAcceptedImage(file));
+      const oversizedFiles = imageFiles.filter(
+        (file) => isAcceptedImage(file) && file.size > maxImageBytes
+      );
+
+      if (validFiles.length === 0) {
+        const oversizedMessage = oversizedFiles.length
+          ? ` Too large: ${oversizedFiles
+              .map((file) => `${file.name} is ${fileSizeLabel(file.size)}`)
+              .join(", ")}.`
+          : "";
+        setError(`Use JPG, PNG, WEBP, GIF, or AVIF images under 20 MB.${oversizedMessage}`);
+        return;
+      }
+
+      const uploadResults = await Promise.allSettled(
+        validFiles.map((file) => uploadMerchImage(adminToken.trim(), file))
+      );
+      const uploads = uploadResults
+        .filter((result) => result.status === "fulfilled")
+        .map((result) => result.value);
+      const failedFiles = uploadResults
+        .map((result, index) => uploadFailureMessage(result, validFiles[index]))
+        .filter(Boolean);
+
+      if (uploads.length === 0) {
+        setError("No images uploaded. Use JPG, PNG, WEBP, GIF, or AVIF images under 20 MB.");
+        return;
+      }
 
       setMerchDraft((current) => {
         const imageUrls = normalizeImageUrls(
@@ -544,9 +955,20 @@ export default function AdminPage({
           imageUrls
         };
       });
-      setMessage(
-        uploads.length === 1 ? "Image uploaded." : `${uploads.length} images uploaded.`
-      );
+      const uploadedMessage =
+        uploads.length === 1 ? "Image uploaded." : `${uploads.length} images uploaded.`;
+      const skippedMessage = skippedFiles.length
+        ? ` Skipped unsupported files: ${skippedFiles.map((file) => file.name).join(", ")}.`
+        : "";
+      const oversizedMessage = oversizedFiles.length
+        ? ` Too large: ${oversizedFiles
+            .map((file) => `${file.name} is ${fileSizeLabel(file.size)}`)
+            .join(", ")}.`
+        : "";
+      const failedMessage = failedFiles.length
+        ? ` Could not upload: ${failedFiles.join(", ")}.`
+        : "";
+      setMessage(`${uploadedMessage}${skippedMessage}${oversizedMessage}${failedMessage}`);
     } catch (err) {
       handleAdminError(err, "Could not upload images.");
     }
@@ -620,9 +1042,14 @@ export default function AdminPage({
           <p className="eyebrow">Admin</p>
           <h2>Management Panel</h2>
         </div>
-        <button className="secondary-button" onClick={onBack} type="button">
-          Back to Site
-        </button>
+        <div className="admin-header__actions">
+          <button className="secondary-button" onClick={onBack} type="button">
+            Back to Site
+          </button>
+          <button className="danger-button" onClick={onLogout} type="button">
+            Log out
+          </button>
+        </div>
       </div>
 
       {message && <p className="success">{message}</p>}
@@ -641,10 +1068,151 @@ export default function AdminPage({
         ))}
       </div>
 
+      {activeTab === "about" && (
+        <form className="admin-form about-editor" onSubmit={submitAbout}>
+          <h3>Edit About Page</h3>
+          <label>
+            Text body
+            <textarea
+              className="about-editor__body"
+              value={aboutForm.body}
+              onChange={(event) =>
+                setAboutForm({ ...aboutForm, body: event.target.value })
+              }
+            />
+          </label>
+
+          <div
+            className="image-dropzone"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              void uploadAboutImages(event.dataTransfer.files);
+            }}
+          >
+            <p>Drop carousel images here or choose local files.</p>
+            <p className="muted">JPG, PNG, WEBP, GIF, or AVIF. Max 20 MB each.</p>
+            <label className="file-button">
+              Choose Images
+              <input
+                accept={imageAccept}
+                multiple
+                onChange={(event) => void uploadAboutImages(event.target.files ?? undefined)}
+                type="file"
+              />
+            </label>
+          </div>
+
+          {aboutForm.images.length > 0 && (
+            <div className="image-preview-strip">
+              {aboutForm.images.map((image, index) => (
+                <div
+                  className={
+                    draggingImageIndex === index
+                      ? "image-preview-card image-preview-card--dragging"
+                      : "image-preview-card"
+                  }
+                  draggable
+                  key={`${image.id ?? image.imageUrl}-${index}`}
+                  onDragStart={(event) => {
+                    setDraggingImageIndex(index);
+                    event.dataTransfer.setData("text/plain", String(index));
+                  }}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const fromIndex = Number(event.dataTransfer.getData("text/plain"));
+                    reorderAboutImage(draggingImageIndex ?? fromIndex, index);
+                    setDraggingImageIndex(null);
+                  }}
+                >
+                  <span className="image-preview-card__order">{index + 1}</span>
+                  <img src={image.imageUrl} alt="About carousel preview" />
+                  <button
+                    className="danger-button"
+                    onClick={() => removeAboutImage(index)}
+                    type="button"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="contact-editor">
+            <p className="form-subheading">Contact</p>
+            <label>
+              Phone
+              <input
+                value={aboutForm.contact.phone}
+                onChange={(event) =>
+                  setAboutForm({
+                    ...aboutForm,
+                    contact: { ...aboutForm.contact, phone: event.target.value }
+                  })
+                }
+              />
+            </label>
+            <label>
+              Email
+              <input
+                type="email"
+                value={aboutForm.contact.email}
+                onChange={(event) =>
+                  setAboutForm({
+                    ...aboutForm,
+                    contact: { ...aboutForm.contact, email: event.target.value }
+                  })
+                }
+              />
+            </label>
+            <label>
+              Instagram link
+              <input
+                value={aboutForm.contact.instagramUrl}
+                onChange={(event) =>
+                  setAboutForm({
+                    ...aboutForm,
+                    contact: { ...aboutForm.contact, instagramUrl: event.target.value }
+                  })
+                }
+              />
+            </label>
+            <label>
+              YouTube link
+              <input
+                value={aboutForm.contact.youTubeUrl}
+                onChange={(event) =>
+                  setAboutForm({
+                    ...aboutForm,
+                    contact: { ...aboutForm.contact, youTubeUrl: event.target.value }
+                  })
+                }
+              />
+            </label>
+            <label>
+              Spotify link
+              <input
+                value={aboutForm.contact.spotifyUrl}
+                onChange={(event) =>
+                  setAboutForm({
+                    ...aboutForm,
+                    contact: { ...aboutForm.contact, spotifyUrl: event.target.value }
+                  })
+                }
+              />
+            </label>
+          </div>
+
+          <button className="primary-button">Save About Page</button>
+        </form>
+      )}
+
       {activeTab === "shows" && (
         <div className="admin-layout">
           <form className="admin-form" onSubmit={submitShow}>
-            <h3>Add Show</h3>
+            <h3>{editingShow ? "Edit Show" : "Add Show"}</h3>
             <label>
               Title
               <input
@@ -712,7 +1280,20 @@ export default function AdminPage({
               />
               Sold out
             </label>
-            <button className="primary-button">Add Show</button>
+            <div className="form-actions">
+              <button className="primary-button">
+                {editingShow ? "Save Show" : "Add Show"}
+              </button>
+              {editingShow && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setShowForm(emptyShowForm())}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
 
           <div className="admin-list">
@@ -725,9 +1306,18 @@ export default function AdminPage({
                     {show.title.trim() ? showLocation(show) : formatDate(show.startsAt)}
                   </p>
                 </div>
-                <button className="danger-button" onClick={() => void removeShow(show.id)}>
-                  Remove
-                </button>
+                <div className="compact-card__actions">
+                  <button
+                    className="secondary-button"
+                    onClick={() => setShowForm(showFormFromShow(show))}
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                  <button className="danger-button" onClick={() => void removeShow(show.id)}>
+                    Remove
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -737,7 +1327,7 @@ export default function AdminPage({
       {activeTab === "posts" && (
         <div className="admin-layout">
           <form className="admin-form" onSubmit={submitPost}>
-            <h3>Add Post</h3>
+            <h3>{editingPost ? "Edit Post" : "Add Post"}</h3>
             <label>
               Title
               <input
@@ -767,6 +1357,16 @@ export default function AdminPage({
                 }
               />
             </label>
+            <label>
+              Link destination
+              <input
+                placeholder="Instagram post, ticket page, video..."
+                value={postForm.linkUrl}
+                onChange={(event) =>
+                  setPostForm({ ...postForm, linkUrl: event.target.value })
+                }
+              />
+            </label>
             <label className="checkbox-row">
               <input
                 checked={postForm.isPinned}
@@ -777,7 +1377,20 @@ export default function AdminPage({
               />
               Pinned
             </label>
-            <button className="primary-button">Add Post</button>
+            <div className="form-actions">
+              <button className="primary-button">
+                {editingPost ? "Save Post" : "Add Post"}
+              </button>
+              {editingPost && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setPostForm(emptyPostForm())}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
 
           <div className="admin-list">
@@ -787,10 +1400,20 @@ export default function AdminPage({
                 <div>
                   <h3>{post.title}</h3>
                   <p className="muted">{post.category}</p>
+                  {post.linkUrl && <p className="muted">{post.linkUrl}</p>}
                 </div>
-                <button className="danger-button" onClick={() => void removePost(post.id)}>
-                  Remove
-                </button>
+                <div className="compact-card__actions">
+                  <button
+                    className="secondary-button"
+                    onClick={() => setPostForm(postFormFromPost(post))}
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                  <button className="danger-button" onClick={() => void removePost(post.id)}>
+                    Remove
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -800,7 +1423,7 @@ export default function AdminPage({
       {activeTab === "music" && (
         <div className="admin-layout">
           <form className="admin-form" onSubmit={submitMusic}>
-            <h3>Add Music Release</h3>
+            <h3>{editingMusic ? "Edit Music Release" : "Add Music Release"}</h3>
             <label>
               Name
               <input
@@ -854,53 +1477,52 @@ export default function AdminPage({
               <label className="file-button">
                 Choose Cover
                 <input
-                  accept="image/*"
+                  accept={imageAccept}
                   onChange={(event) => void uploadMusicCover(event.target.files ?? undefined)}
                   type="file"
                 />
               </label>
             </div>
-            <label>
-              Main listening link
-              <input
-                placeholder="Spotify, YouTube, Bandcamp..."
-                value={musicForm.listenUrl}
-                onChange={(event) =>
-                  setMusicForm({ ...musicForm, listenUrl: event.target.value })
-                }
-              />
-            </label>
-            <label>
-              Embed link
-              <input
-                placeholder="Only needed if the main link does not embed nicely"
-                value={musicForm.embedUrl}
-                onChange={(event) =>
-                  setMusicForm({ ...musicForm, embedUrl: event.target.value })
-                }
-              />
-            </label>
-            <label>
-              Platform links
-              <textarea
-                placeholder={"Spotify | https://...\nApple Music | https://...\nYouTube | https://..."}
-                value={musicForm.linksText}
-                onChange={(event) =>
-                  setMusicForm({ ...musicForm, linksText: event.target.value })
-                }
-              />
-            </label>
-            <label className="checkbox-row">
-              <input
-                checked={musicForm.isPublished}
-                onChange={(event) =>
-                  setMusicForm({ ...musicForm, isPublished: event.target.checked })
-                }
-                type="checkbox"
-              />
-              Visible on site
-            </label>
-            <button className="primary-button">Add Release</button>
+            <div className="platform-field-grid">
+              <p className="form-subheading">Platform links</p>
+              {musicPlatforms.map((platform) => (
+                <label key={platform}>
+                  {platform === "Spotify" ? "Spotify" : platform}
+                  <input
+                    placeholder={
+                      platform === "Spotify"
+                        ? "Spotify album link"
+                        : undefined
+                    }
+                    required={platform === "Spotify"}
+                    value={musicForm.platformLinks[platform]}
+                    onChange={(event) =>
+                      setMusicForm({
+                        ...musicForm,
+                        platformLinks: {
+                          ...musicForm.platformLinks,
+                          [platform]: event.target.value
+                        }
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="form-actions">
+              <button className="primary-button">
+                {editingMusic ? "Save Release" : "Add Release"}
+              </button>
+              {editingMusic && (
+                <button
+                  className="secondary-button"
+                  onClick={() => setMusicForm(emptyMusicForm())}
+                  type="button"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
 
           <div className="admin-list">
@@ -919,11 +1541,19 @@ export default function AdminPage({
                   <p className="muted">
                     {release.releaseType} - {release.releaseYear}
                   </p>
-                  <p className="muted">{release.isPublished ? "Visible" : "Hidden"}</p>
                 </div>
-                <button className="danger-button" onClick={() => void removeMusic(release.id)}>
-                  Remove
-                </button>
+                <div className="music-admin-row__actions">
+                  <button
+                    className="secondary-button"
+                    onClick={() => setMusicForm(musicFormFromRelease(release))}
+                    type="button"
+                  >
+                    Edit
+                  </button>
+                  <button className="danger-button" onClick={() => void removeMusic(release.id)}>
+                    Remove
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -1016,7 +1646,7 @@ export default function AdminPage({
               <label className="secondary-button image-dropzone__picker">
                 Choose Files
                 <input
-                  accept="image/*"
+                  accept={imageAccept}
                   className="visually-hidden"
                   multiple
                   type="file"

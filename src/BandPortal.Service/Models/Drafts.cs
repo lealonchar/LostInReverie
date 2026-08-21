@@ -2,6 +2,22 @@
 
 namespace BandPortal.Service.Models;
 
+public sealed record AboutContentDraft(
+    string Body,
+    IReadOnlyList<AboutImageDraft> Images,
+    ContactInfoDraft Contact);
+
+public sealed record AboutImageDraft(
+    Guid? Id,
+    string ImageUrl);
+
+public sealed record ContactInfoDraft(
+    string? Phone,
+    string? Email,
+    string? InstagramUrl,
+    string? YouTubeUrl,
+    string? SpotifyUrl);
+
 public sealed record ShowDraft(
     string? Title,
     string Venue,
@@ -15,6 +31,7 @@ public sealed record NewsPostDraft(
     string Title,
     string Category,
     string Body,
+    string? LinkUrl,
     bool IsPinned);
 
 public sealed record MusicReleaseDraft(

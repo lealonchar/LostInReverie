@@ -4,6 +4,29 @@ namespace BandPortal.Web.Dtos;
 
 public static class BandDtoMapper
 {
+    public static AboutContentDto ToDto(this AboutContent about)
+    {
+        return new AboutContentDto(
+            about.Body,
+            about.Images.Select(image => image.ToDto()).ToList(),
+            about.Contact.ToDto());
+    }
+
+    public static AboutImageDto ToDto(this AboutImage image)
+    {
+        return new AboutImageDto(image.Id, image.ImageUrl);
+    }
+
+    public static ContactInfoDto ToDto(this ContactInfo contact)
+    {
+        return new ContactInfoDto(
+            contact.Phone,
+            contact.Email,
+            contact.InstagramUrl,
+            contact.YouTubeUrl,
+            contact.SpotifyUrl);
+    }
+
     public static ShowDto ToDto(this Show show)
     {
         return new ShowDto(
@@ -24,6 +47,7 @@ public static class BandDtoMapper
             post.Title,
             post.Category,
             post.Body,
+            post.LinkUrl,
             post.PublishedAt,
             post.IsPinned);
     }

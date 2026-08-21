@@ -11,6 +11,12 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
     private readonly SemaphoreSlim _initGate = new(1, 1);
     private bool _isInitialized;
 
+    public async Task<AboutContent> GetAboutAsync(CancellationToken cancellationToken = default)
+    {
+        var database = await ReadAsync(cancellationToken);
+        return database.About;
+    }
+
     public async Task<IReadOnlyList<Show>> GetShowsAsync(CancellationToken cancellationToken = default)
     {
         var database = await ReadAsync(cancellationToken);
@@ -108,6 +114,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
     {
         var database = new BandDatabase
         {
+            About = await LoadAboutAsync(connection, transaction, cancellationToken),
             Shows = await LoadShowsAsync(connection, transaction, cancellationToken),
             News = await LoadNewsAsync(connection, transaction, cancellationToken),
             Music = await LoadMusicAsync(connection, transaction, cancellationToken),
@@ -116,6 +123,57 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
         };
 
         return database;
+    }
+
+    private static async Task<AboutContent> LoadAboutAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        CancellationToken cancellationToken)
+    {
+        const string contentSql = """
+            select body, contact_phone, contact_email, contact_instagram_url, contact_youtube_url, contact_spotify_url
+            from about_content
+            where id = 1;
+            """;
+
+        var about = new AboutContent();
+        await using (var command = new NpgsqlCommand(contentSql, connection, transaction))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+        {
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                about.Body = reader.GetString(0);
+                about.Contact = new ContactInfo
+                {
+                    Phone = reader.GetString(1),
+                    Email = reader.GetString(2),
+                    InstagramUrl = reader.GetString(3),
+                    YouTubeUrl = reader.GetString(4),
+                    SpotifyUrl = reader.GetString(5)
+                };
+            }
+        }
+
+        const string imagesSql = """
+            select id, image_url
+            from about_images
+            order by image_index;
+            """;
+
+        await using (var command = new NpgsqlCommand(imagesSql, connection, transaction))
+        await using (var reader = await command.ExecuteReaderAsync(cancellationToken))
+        {
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                about.Images.Add(new AboutImage
+                {
+                    Id = reader.GetGuid(0),
+                    ImageUrl = reader.GetString(1)
+                });
+            }
+        }
+
+        return about;
     }
 
     private static async Task<List<Show>> LoadShowsAsync(
@@ -157,7 +215,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
         CancellationToken cancellationToken)
     {
         const string sql = """
-            select id, title, category, body, published_at, is_pinned
+            select id, title, category, body, link_url, published_at, is_pinned
             from news_posts
             order by published_at desc;
             """;
@@ -174,8 +232,9 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                 Title = reader.GetString(1),
                 Category = reader.GetString(2),
                 Body = reader.GetString(3),
-                PublishedAt = reader.GetFieldValue<DateTimeOffset>(4),
-                IsPinned = reader.GetBoolean(5)
+                LinkUrl = reader.IsDBNull(4) ? null : reader.GetString(4),
+                PublishedAt = reader.GetFieldValue<DateTimeOffset>(5),
+                IsPinned = reader.GetBoolean(6)
             });
         }
 
@@ -441,9 +500,66 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             delete from music_releases;
             delete from news_posts;
             delete from shows;
+            delete from about_resources;
+            delete from about_images;
+            delete from about_content;
             """,
             null,
             cancellationToken);
+
+        await ExecuteAsync(
+            connection,
+            transaction,
+            """
+            insert into about_content (
+                id,
+                body,
+                contact_phone,
+                contact_email,
+                contact_instagram_url,
+                contact_youtube_url,
+                contact_spotify_url
+            )
+            values (
+                1,
+                @body,
+                @contact_phone,
+                @contact_email,
+                @contact_instagram_url,
+                @contact_youtube_url,
+                @contact_spotify_url
+            );
+            """,
+            command =>
+            {
+                command.Parameters.AddWithValue("body", database.About.Body);
+                command.Parameters.AddWithValue("contact_phone", database.About.Contact.Phone);
+                command.Parameters.AddWithValue("contact_email", database.About.Contact.Email);
+                command.Parameters.AddWithValue("contact_instagram_url", database.About.Contact.InstagramUrl);
+                command.Parameters.AddWithValue("contact_youtube_url", database.About.Contact.YouTubeUrl);
+                command.Parameters.AddWithValue("contact_spotify_url", database.About.Contact.SpotifyUrl);
+            },
+            cancellationToken);
+
+        for (var imageIndex = 0; imageIndex < database.About.Images.Count; imageIndex++)
+        {
+            var image = database.About.Images[imageIndex];
+
+            await ExecuteAsync(
+                connection,
+                transaction,
+                """
+                insert into about_images (id, image_index, image_url)
+                values (@id, @image_index, @image_url);
+                """,
+                command =>
+                {
+                    command.Parameters.AddWithValue("id", image.Id);
+                    command.Parameters.AddWithValue("image_index", imageIndex);
+                    command.Parameters.AddWithValue("image_url", image.ImageUrl);
+                },
+                cancellationToken);
+        }
 
         foreach (var show in database.Shows)
         {
@@ -474,8 +590,8 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                 connection,
                 transaction,
                 """
-                insert into news_posts (id, title, category, body, published_at, is_pinned)
-                values (@id, @title, @category, @body, @published_at, @is_pinned);
+                insert into news_posts (id, title, category, body, link_url, published_at, is_pinned)
+                values (@id, @title, @category, @body, @link_url, @published_at, @is_pinned);
                 """,
                 command =>
                 {
@@ -483,6 +599,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                     command.Parameters.AddWithValue("title", post.Title);
                     command.Parameters.AddWithValue("category", post.Category);
                     command.Parameters.AddWithValue("body", post.Body);
+                    command.Parameters.AddWithValue("link_url", (object?)post.LinkUrl ?? DBNull.Value);
                     command.Parameters.AddWithValue("published_at", post.PublishedAt.ToUniversalTime());
                     command.Parameters.AddWithValue("is_pinned", post.IsPinned);
                 },
@@ -695,14 +812,52 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             is_sold_out boolean not null
         );
 
+        create table if not exists about_content (
+            id integer primary key,
+            body text not null,
+            contact_phone text not null default '',
+            contact_email text not null default '',
+            contact_instagram_url text not null default '',
+            contact_youtube_url text not null default '',
+            contact_spotify_url text not null default ''
+        );
+
+        alter table about_content
+            add column if not exists contact_phone text not null default '',
+            add column if not exists contact_email text not null default '',
+            add column if not exists contact_instagram_url text not null default '',
+            add column if not exists contact_youtube_url text not null default '',
+            add column if not exists contact_spotify_url text not null default '';
+
+        insert into about_content (id, body)
+        values (1, '')
+        on conflict (id) do nothing;
+
+        create table if not exists about_images (
+            id uuid primary key,
+            image_index integer not null,
+            image_url text not null
+        );
+
+        create table if not exists about_resources (
+            id uuid primary key,
+            resource_index integer not null,
+            title text not null,
+            file_url text not null
+        );
+
         create table if not exists news_posts (
             id uuid primary key,
             title text not null,
             category text not null,
             body text not null,
+            link_url text null,
             published_at timestamptz not null,
             is_pinned boolean not null
         );
+
+        alter table news_posts
+            add column if not exists link_url text null;
 
         create table if not exists music_releases (
             id uuid primary key,

@@ -3,6 +3,22 @@ using System.Collections.Generic;
 
 namespace BandPortal.Web.Dtos;
 
+public sealed record AboutContentDto(
+    string Body,
+    IReadOnlyList<AboutImageDto> Images,
+    ContactInfoDto Contact);
+
+public sealed record AboutImageDto(
+    Guid Id,
+    string ImageUrl);
+
+public sealed record ContactInfoDto(
+    string Phone,
+    string Email,
+    string InstagramUrl,
+    string YouTubeUrl,
+    string SpotifyUrl);
+
 public sealed record ShowDto(
     Guid Id,
     string Title,
@@ -18,6 +34,7 @@ public sealed record NewsPostDto(
     string Title,
     string Category,
     string Body,
+    string? LinkUrl,
     DateTimeOffset PublishedAt,
     bool IsPinned);
 

@@ -3,6 +3,7 @@ using BandPortal.Repository;
 using BandPortal.Service.Services;
 using BandPortal.Web.Endpoints;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.AspNetCore.StaticFiles;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,7 @@ builder.Services.AddSingleton<IBandRepository>(_ =>
     return new JsonBandRepository(databasePath);
 });
 builder.Services.AddScoped<ShowsService>();
+builder.Services.AddScoped<AboutService>();
 builder.Services.AddScoped<NewsService>();
 builder.Services.AddScoped<MusicService>();
 builder.Services.AddScoped<MerchService>();
@@ -53,9 +55,14 @@ app.UseCors("frontend");
 var uploadsDirectory = Path.Combine(app.Environment.ContentRootPath, "App_Data", "uploads");
 Directory.CreateDirectory(uploadsDirectory);
 
+var uploadContentTypes = new FileExtensionContentTypeProvider();
+uploadContentTypes.Mappings[".avif"] = "image/avif";
+uploadContentTypes.Mappings[".webp"] = "image/webp";
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsDirectory),
+    ContentTypeProvider = uploadContentTypes,
     RequestPath = "/uploads"
 });
 

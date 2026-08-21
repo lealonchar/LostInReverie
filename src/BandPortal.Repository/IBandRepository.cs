@@ -5,6 +5,8 @@ namespace BandPortal.Repository;
 
 public interface IBandRepository
 {
+    Task<AboutContent> GetAboutAsync(CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Show>> GetShowsAsync(CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<NewsPost>> GetNewsAsync(CancellationToken cancellationToken = default);

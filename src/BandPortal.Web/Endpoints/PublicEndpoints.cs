@@ -11,6 +11,14 @@ public static class PublicEndpoints
     {
         var api = app.MapGroup("/api");
 
+        api.MapGet("/about", async (
+            AboutService aboutService,
+            CancellationToken cancellationToken) =>
+        {
+            var about = await aboutService.GetAsync(cancellationToken);
+            return about.ToDto();
+        });
+
         api.MapGet("/shows", async (
             ShowsService showsService,
             CancellationToken cancellationToken) =>

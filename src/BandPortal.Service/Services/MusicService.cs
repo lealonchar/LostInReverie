@@ -29,39 +29,38 @@ public sealed class MusicService(IBandRepository repository)
         MusicReleaseDraft draft,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(draft.Title))
+        var validationError = Validate(draft);
+        if (validationError is not null)
         {
-            return Task.FromResult(ServiceResult<MusicRelease>.Failure("A release needs a name."));
+            return Task.FromResult(ServiceResult<MusicRelease>.Failure(validationError));
         }
 
-        if (draft.ReleaseYear < 1900 || draft.ReleaseYear > DateTimeOffset.UtcNow.Year + 1)
-        {
-            return Task.FromResult(ServiceResult<MusicRelease>.Failure("Use a valid release year."));
-        }
-
-        var release = new MusicRelease
-        {
-            Title = draft.Title.Trim(),
-            ReleaseType = string.IsNullOrWhiteSpace(draft.ReleaseType) ? "Album" : draft.ReleaseType.Trim(),
-            ReleaseYear = draft.ReleaseYear,
-            CoverImageUrl = draft.CoverImageUrl.Trim(),
-            ListenUrl = draft.ListenUrl.Trim(),
-            EmbedUrl = string.IsNullOrWhiteSpace(draft.EmbedUrl) ? null : draft.EmbedUrl.Trim(),
-            IsPublished = draft.IsPublished,
-            Links = draft.Links
-                .Where(link => !string.IsNullOrWhiteSpace(link.Platform) && !string.IsNullOrWhiteSpace(link.Url))
-                .Select(link => new MusicPlatformLink
-                {
-                    Platform = link.Platform.Trim(),
-                    Url = link.Url.Trim()
-                })
-                .ToList()
-        };
+        var release = Map(new MusicRelease(), draft);
 
         return repository.UpdateAsync(database =>
         {
             database.Music.Add(release);
             return ServiceResult<MusicRelease>.Success(release);
+        }, cancellationToken);
+    }
+
+    public Task<ServiceResult<MusicRelease>> UpdateAsync(
+        Guid id,
+        MusicReleaseDraft draft,
+        CancellationToken cancellationToken = default)
+    {
+        var validationError = Validate(draft);
+        if (validationError is not null)
+        {
+            return Task.FromResult(ServiceResult<MusicRelease>.Failure(validationError));
+        }
+
+        return repository.UpdateAsync(database =>
+        {
+            var release = database.Music.FirstOrDefault(release => release.Id == id);
+            return release is null
+                ? ServiceResult<MusicRelease>.Failure("Music release was not found.")
+                : ServiceResult<MusicRelease>.Success(Map(release, draft));
         }, cancellationToken);
     }
 
@@ -72,5 +71,46 @@ public sealed class MusicService(IBandRepository repository)
             var release = database.Music.FirstOrDefault(release => release.Id == id);
             return release is not null && database.Music.Remove(release);
         }, cancellationToken);
+    }
+
+    private static MusicRelease Map(MusicRelease release, MusicReleaseDraft draft)
+    {
+        release.Title = draft.Title.Trim();
+        release.ReleaseType = string.IsNullOrWhiteSpace(draft.ReleaseType) ? "Album" : draft.ReleaseType.Trim();
+        release.ReleaseYear = draft.ReleaseYear;
+        release.CoverImageUrl = draft.CoverImageUrl.Trim();
+        release.ListenUrl = draft.ListenUrl.Trim();
+        release.EmbedUrl = string.IsNullOrWhiteSpace(draft.EmbedUrl) ? null : draft.EmbedUrl.Trim();
+        release.IsPublished = draft.IsPublished;
+        release.Links = draft.Links
+            .Where(link => !string.IsNullOrWhiteSpace(link.Platform) && !string.IsNullOrWhiteSpace(link.Url))
+            .Select(link => new MusicPlatformLink
+            {
+                Platform = link.Platform.Trim(),
+                Url = link.Url.Trim()
+            })
+            .ToList();
+
+        return release;
+    }
+
+    private static string? Validate(MusicReleaseDraft draft)
+    {
+        if (string.IsNullOrWhiteSpace(draft.Title))
+        {
+            return "A release needs a name.";
+        }
+
+        if (string.IsNullOrWhiteSpace(draft.ListenUrl))
+        {
+            return "Spotify link is required.";
+        }
+
+        if (draft.ReleaseYear < 1900 || draft.ReleaseYear > DateTimeOffset.UtcNow.Year + 1)
+        {
+            return "Use a valid release year.";
+        }
+
+        return null;
     }
 }

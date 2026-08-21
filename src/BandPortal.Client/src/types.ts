@@ -9,11 +9,31 @@ export type Show = {
   isSoldOut: boolean;
 };
 
+export type AboutContent = {
+  body: string;
+  images: AboutImage[];
+  contact: ContactInfo;
+};
+
+export type AboutImage = {
+  id: string;
+  imageUrl: string;
+};
+
+export type ContactInfo = {
+  phone: string;
+  email: string;
+  instagramUrl: string;
+  youTubeUrl: string;
+  spotifyUrl: string;
+};
+
 export type NewsPost = {
   id: string;
   title: string;
   category: string;
   body: string;
+  linkUrl?: string | null;
   publishedAt: string;
   isPinned: boolean;
 };

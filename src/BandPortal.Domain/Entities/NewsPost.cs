@@ -10,6 +10,8 @@ public sealed class NewsPost
 
     public string Body { get; set; } = "";
 
+    public string? LinkUrl { get; set; }
+
     public DateTimeOffset PublishedAt { get; set; } = DateTimeOffset.UtcNow;
 
     public bool IsPinned { get; set; }

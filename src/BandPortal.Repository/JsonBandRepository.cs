@@ -32,6 +32,12 @@ public sealed class JsonBandRepository : IBandRepository
         return database.Shows;
     }
 
+    public async Task<AboutContent> GetAboutAsync(CancellationToken cancellationToken = default)
+    {
+        var database = await ReadAsync(cancellationToken);
+        return database.About;
+    }
+
     public async Task<IReadOnlyList<NewsPost>> GetNewsAsync(CancellationToken cancellationToken = default)
     {
         var database = await ReadAsync(cancellationToken);

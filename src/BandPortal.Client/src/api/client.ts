@@ -1,4 +1,5 @@
 import type {
+  AboutContent,
   MerchItem,
   MusicRelease,
   NewsPost,
@@ -37,6 +38,18 @@ export type MusicInput = {
   links: Array<{ platform: string; url: string }>;
 };
 
+export type AboutInput = {
+  body: string;
+  images: Array<{ id?: string; imageUrl: string }>;
+  contact: {
+    phone: string;
+    email: string;
+    instagramUrl: string;
+    youTubeUrl: string;
+    spotifyUrl: string;
+  };
+};
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -73,11 +86,41 @@ export function getShows() {
   return request<Show[]>("/api/shows");
 }
 
+export function getAbout() {
+  return request<AboutContent>("/api/about");
+}
+
+export function getAdminAbout(adminToken: string) {
+  return request<AboutContent>("/api/admin/about", {}, adminToken);
+}
+
+export function updateAbout(adminToken: string, about: AboutInput) {
+  return request<AboutContent>(
+    "/api/admin/about",
+    {
+      method: "PUT",
+      body: JSON.stringify(about)
+    },
+    adminToken
+  );
+}
+
 export function createShow(adminToken: string, show: Omit<Show, "id">) {
   return request<Show>(
     "/api/admin/shows",
     {
       method: "POST",
+      body: JSON.stringify(show)
+    },
+    adminToken
+  );
+}
+
+export function updateShow(adminToken: string, id: string, show: Omit<Show, "id">) {
+  return request<Show>(
+    `/api/admin/shows/${id}`,
+    {
+      method: "PUT",
       body: JSON.stringify(show)
     },
     adminToken
@@ -100,12 +143,27 @@ export function getNews() {
 
 export function createNewsPost(
   adminToken: string,
-  post: Pick<NewsPost, "title" | "category" | "body" | "isPinned">
+  post: Pick<NewsPost, "title" | "category" | "body" | "linkUrl" | "isPinned">
 ) {
   return request<NewsPost>(
     "/api/admin/news",
     {
       method: "POST",
+      body: JSON.stringify(post)
+    },
+    adminToken
+  );
+}
+
+export function updateNewsPost(
+  adminToken: string,
+  id: string,
+  post: Pick<NewsPost, "title" | "category" | "body" | "linkUrl" | "isPinned">
+) {
+  return request<NewsPost>(
+    `/api/admin/news/${id}`,
+    {
+      method: "PUT",
       body: JSON.stringify(post)
     },
     adminToken
@@ -135,6 +193,17 @@ export function createMusicRelease(adminToken: string, release: MusicInput) {
     "/api/admin/music",
     {
       method: "POST",
+      body: JSON.stringify(release)
+    },
+    adminToken
+  );
+}
+
+export function updateMusicRelease(adminToken: string, id: string, release: MusicInput) {
+  return request<MusicRelease>(
+    `/api/admin/music/${id}`,
+    {
+      method: "PUT",
       body: JSON.stringify(release)
     },
     adminToken

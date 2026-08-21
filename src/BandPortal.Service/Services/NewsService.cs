@@ -19,24 +19,39 @@ public sealed class NewsService(IBandRepository repository)
         NewsPostDraft draft,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(draft.Title) || string.IsNullOrWhiteSpace(draft.Body))
+        var validationError = Validate(draft);
+        if (validationError is not null)
         {
-            return Task.FromResult(ServiceResult<NewsPost>.Failure("A post needs a title and body."));
+            return Task.FromResult(ServiceResult<NewsPost>.Failure(validationError));
         }
 
-        var post = new NewsPost
-        {
-            Title = draft.Title.Trim(),
-            Category = string.IsNullOrWhiteSpace(draft.Category) ? "News" : draft.Category.Trim(),
-            Body = draft.Body.Trim(),
-            IsPinned = draft.IsPinned,
-            PublishedAt = DateTimeOffset.UtcNow
-        };
+        var post = Map(new NewsPost(), draft);
+        post.PublishedAt = DateTimeOffset.UtcNow;
 
         return repository.UpdateAsync(database =>
         {
             database.News.Add(post);
             return ServiceResult<NewsPost>.Success(post);
+        }, cancellationToken);
+    }
+
+    public Task<ServiceResult<NewsPost>> UpdateAsync(
+        Guid id,
+        NewsPostDraft draft,
+        CancellationToken cancellationToken = default)
+    {
+        var validationError = Validate(draft);
+        if (validationError is not null)
+        {
+            return Task.FromResult(ServiceResult<NewsPost>.Failure(validationError));
+        }
+
+        return repository.UpdateAsync(database =>
+        {
+            var post = database.News.FirstOrDefault(post => post.Id == id);
+            return post is null
+                ? ServiceResult<NewsPost>.Failure("Post was not found.")
+                : ServiceResult<NewsPost>.Success(Map(post, draft));
         }, cancellationToken);
     }
 
@@ -47,5 +62,37 @@ public sealed class NewsService(IBandRepository repository)
             var post = database.News.FirstOrDefault(post => post.Id == id);
             return post is not null && database.News.Remove(post);
         }, cancellationToken);
+    }
+
+    private static NewsPost Map(NewsPost post, NewsPostDraft draft)
+    {
+        post.Title = draft.Title.Trim();
+        post.Category = string.IsNullOrWhiteSpace(draft.Category) ? "News" : draft.Category.Trim();
+        post.Body = draft.Body.Trim();
+        post.LinkUrl = NormalizeLinkUrl(draft.LinkUrl);
+        post.IsPinned = draft.IsPinned;
+
+        return post;
+    }
+
+    private static string? Validate(NewsPostDraft draft)
+    {
+        return string.IsNullOrWhiteSpace(draft.Title) || string.IsNullOrWhiteSpace(draft.Body)
+            ? "A post needs a title and body."
+            : null;
+    }
+
+    private static string? NormalizeLinkUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                ? trimmed
+                : $"https://{trimmed}";
     }
 }

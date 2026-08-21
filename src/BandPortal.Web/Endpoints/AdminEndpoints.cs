@@ -8,20 +8,51 @@ namespace BandPortal.Web.Endpoints;
 
 public static class AdminEndpoints
 {
-    private const long MaxImageBytes = 5 * 1024 * 1024;
+    private const long MaxImageBytes = 20 * 1024 * 1024;
     private static readonly HashSet<string> AllowedImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".jpg",
         ".jpeg",
         ".png",
         ".webp",
-        ".gif"
+        ".gif",
+        ".avif"
     };
 
     public static IEndpointRouteBuilder MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
         var admin = app.MapGroup("/api/admin");
         admin.AddEndpointFilter(RequireAdminToken);
+
+        admin.MapGet("/about", async (
+            AboutService aboutService,
+            CancellationToken cancellationToken) =>
+        {
+            var about = await aboutService.GetAsync(cancellationToken);
+            return about.ToDto();
+        });
+
+        admin.MapPut("/about", async (
+            UpdateAboutContentRequest request,
+            AboutService aboutService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await aboutService.UpdateAsync(new AboutContentDraft(
+                request.Body,
+                request.Images?
+                    .Select(image => new AboutImageDraft(image.Id, image.ImageUrl))
+                    .ToList() ?? [],
+                new ContactInfoDraft(
+                    request.Contact?.Phone,
+                    request.Contact?.Email,
+                    request.Contact?.InstagramUrl,
+                    request.Contact?.YouTubeUrl,
+                    request.Contact?.SpotifyUrl)), cancellationToken);
+
+            return result.IsSuccess && result.Value is not null
+                ? Results.Ok(result.Value.ToDto())
+                : Results.BadRequest(result.Error);
+        });
 
         admin.MapPost("/shows", async (
             CreateShowRequest request,
@@ -39,6 +70,26 @@ public static class AdminEndpoints
 
             return result.IsSuccess && result.Value is not null
                 ? Results.Created($"/api/shows/{result.Value.Id}", result.Value.ToDto())
+                : Results.BadRequest(result.Error);
+        });
+
+        admin.MapPut("/shows/{id:guid}", async (
+            Guid id,
+            CreateShowRequest request,
+            ShowsService showsService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await showsService.UpdateAsync(id, new ShowDraft(
+                request.Title,
+                request.Venue,
+                request.City,
+                request.StartsAt,
+                request.TicketUrl,
+                request.Notes,
+                request.IsSoldOut), cancellationToken);
+
+            return result.IsSuccess && result.Value is not null
+                ? Results.Ok(result.Value.ToDto())
                 : Results.BadRequest(result.Error);
         });
 
@@ -60,10 +111,29 @@ public static class AdminEndpoints
                 request.Title,
                 request.Category,
                 request.Body,
+                request.LinkUrl,
                 request.IsPinned), cancellationToken);
 
             return result.IsSuccess && result.Value is not null
                 ? Results.Created($"/api/news/{result.Value.Id}", result.Value.ToDto())
+                : Results.BadRequest(result.Error);
+        });
+
+        admin.MapPut("/news/{id:guid}", async (
+            Guid id,
+            CreateNewsPostRequest request,
+            NewsService newsService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await newsService.UpdateAsync(id, new NewsPostDraft(
+                request.Title,
+                request.Category,
+                request.Body,
+                request.LinkUrl,
+                request.IsPinned), cancellationToken);
+
+            return result.IsSuccess && result.Value is not null
+                ? Results.Ok(result.Value.ToDto())
                 : Results.BadRequest(result.Error);
         });
 
@@ -103,6 +173,29 @@ public static class AdminEndpoints
 
             return result.IsSuccess && result.Value is not null
                 ? Results.Created($"/api/music/{result.Value.Id}", result.Value.ToDto())
+                : Results.BadRequest(result.Error);
+        });
+
+        admin.MapPut("/music/{id:guid}", async (
+            Guid id,
+            CreateMusicReleaseRequest request,
+            MusicService musicService,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await musicService.UpdateAsync(id, new MusicReleaseDraft(
+                request.Title,
+                request.ReleaseType,
+                request.ReleaseYear,
+                request.CoverImageUrl,
+                request.ListenUrl,
+                request.EmbedUrl,
+                request.IsPublished,
+                request.Links?
+                    .Select(link => new MusicPlatformLinkDraft(link.Platform, link.Url))
+                    .ToList() ?? []), cancellationToken);
+
+            return result.IsSuccess && result.Value is not null
+                ? Results.Ok(result.Value.ToDto())
                 : Results.BadRequest(result.Error);
         });
 
@@ -188,13 +281,13 @@ public static class AdminEndpoints
 
             if (file.Length > MaxImageBytes)
             {
-                return Results.BadRequest("Image must be 5 MB or smaller.");
+                return Results.BadRequest("Image must be 20 MB or smaller.");
             }
 
             var extension = Path.GetExtension(file.FileName);
             if (!AllowedImageExtensions.Contains(extension))
             {
-                return Results.BadRequest("Use a JPG, PNG, WEBP, or GIF image.");
+                return Results.BadRequest("Use a JPG, PNG, WEBP, GIF, or AVIF image.");
             }
 
             var uploadsDirectory = Path.Combine(environment.ContentRootPath, "App_Data", "uploads", "merch");
