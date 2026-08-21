@@ -44,6 +44,7 @@ export type MerchItem = {
   imageUrl: string;
   imageUrls?: string[];
   isActive: boolean;
+  hasSizes: boolean;
   variants: MerchVariant[];
 };
 

@@ -20,7 +20,7 @@ Admin sections:
 - **Shows** adds and removes upcoming shows.
 - **Posts** adds and removes news posts.
 - **Music** adds and removes music releases, including cover uploads, year, release type, main listening link, optional embed link, and platform links.
-- **Merch** adds, edits, and removes merch items. Merch supports local image uploads, multiple images, drag-to-reorder galleries, fixed T-shirt sizes from S to XXL, and stock per size.
+- **Merch** adds, edits, and removes merch items. Merch supports local image uploads, multiple images, drag-to-reorder galleries, optional S to XXL sizing, and stock tracking.
 - **Orders** shows order requests with item image, item name, selected size, customer information, and order details. Orders start as pending, can be marked completed, and can be deleted if needed.
 
 ## Merch Orders
@@ -28,6 +28,7 @@ Admin sections:
 The site does not take payments directly. Merch checkout is an order request flow:
 
 - Visitors choose an item and size.
+- Sized items ask visitors to choose a size; non-sized items use one total stock count.
 - Sizes with zero stock are disabled.
 - The visitor submits their name and at least one contact method.
 - Admin can review the order later.
@@ -45,7 +46,7 @@ The site currently manages:
 - News posts
 - Music releases
 - Merch items and images
-- Merch stock by size
+- Merch stock by size or total item count
 - Order requests
 
 Uploaded images are used for merch galleries and music release covers.

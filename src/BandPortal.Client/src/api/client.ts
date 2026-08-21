@@ -22,6 +22,7 @@ export type MerchInput = {
   imageUrl: string;
   imageUrls: string[];
   isActive: boolean;
+  hasSizes: boolean;
   variants: MerchVariantInput[];
 };
 

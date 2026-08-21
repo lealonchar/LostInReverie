@@ -36,6 +36,7 @@ public sealed record UpsertMerchItemRequest(
     string ImageUrl,
     List<string>? ImageUrls,
     bool IsActive,
+    bool HasSizes,
     List<UpsertMerchVariantRequest>? Variants);
 
 public sealed record UpsertMerchVariantRequest(

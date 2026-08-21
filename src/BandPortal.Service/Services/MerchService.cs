@@ -100,6 +100,7 @@ public sealed class MerchService(IBandRepository repository)
         item.ImageUrls = NormalizeImageUrls(draft.ImageUrl, draft.ImageUrls);
         item.ImageUrl = item.ImageUrls.FirstOrDefault() ?? "";
         item.IsActive = draft.IsActive;
+        item.HasSizes = draft.HasSizes;
         item.Variants = draft.Variants
             .Select(variant => new MerchVariant
             {

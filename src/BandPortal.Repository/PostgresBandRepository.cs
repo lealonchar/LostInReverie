@@ -254,7 +254,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
         CancellationToken cancellationToken)
     {
         const string itemsSql = """
-            select id, name, description, price, image_url, is_active
+            select id, name, description, price, image_url, is_active, has_sizes
             from merch_items
             order by name;
             """;
@@ -287,6 +287,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                     Price = reader.GetDecimal(3),
                     ImageUrl = reader.GetString(4),
                     IsActive = reader.GetBoolean(5),
+                    HasSizes = reader.GetBoolean(6),
                     ImageUrls = [],
                     Variants = []
                 };
@@ -544,8 +545,8 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                 connection,
                 transaction,
                 """
-                insert into merch_items (id, name, description, price, image_url, is_active)
-                values (@id, @name, @description, @price, @image_url, @is_active);
+                insert into merch_items (id, name, description, price, image_url, is_active, has_sizes)
+                values (@id, @name, @description, @price, @image_url, @is_active, @has_sizes);
                 """,
                 command =>
                 {
@@ -555,6 +556,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                     command.Parameters.AddWithValue("price", item.Price);
                     command.Parameters.AddWithValue("image_url", item.ImageUrl);
                     command.Parameters.AddWithValue("is_active", item.IsActive);
+                    command.Parameters.AddWithValue("has_sizes", item.HasSizes);
                 },
                 cancellationToken);
 
@@ -727,7 +729,8 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             description text not null,
             price numeric(12, 2) not null,
             image_url text not null,
-            is_active boolean not null
+            is_active boolean not null,
+            has_sizes boolean not null default true
         );
 
         create table if not exists merch_images (
@@ -775,5 +778,8 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
 
         alter table order_lines
             add column if not exists image_url text not null default '';
+
+        alter table merch_items
+            add column if not exists has_sizes boolean not null default true;
         """;
 }

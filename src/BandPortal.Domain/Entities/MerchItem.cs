@@ -16,6 +16,8 @@ public sealed class MerchItem
 
     public bool IsActive { get; set; } = true;
 
+    public bool HasSizes { get; set; } = true;
+
     public List<MerchVariant> Variants { get; set; } = [];
 }
 

@@ -275,6 +275,7 @@ public static class AdminEndpoints
             request.ImageUrl,
             request.ImageUrls ?? [],
             request.IsActive,
+            request.HasSizes,
             (request.Variants ?? new List<UpsertMerchVariantRequest>())
                 .Select(variant => new MerchVariantDraft(
                     variant.Id,

@@ -38,6 +38,7 @@ public sealed record MerchItemDraft(
     string ImageUrl,
     IReadOnlyList<string> ImageUrls,
     bool IsActive,
+    bool HasSizes,
     IReadOnlyList<MerchVariantDraft> Variants);
 
 public sealed record MerchVariantDraft(

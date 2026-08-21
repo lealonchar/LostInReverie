@@ -1,4 +1,7 @@
-﻿namespace BandPortal.Web.Dtos;
+﻿using System;
+using System.Collections.Generic;
+
+namespace BandPortal.Web.Dtos;
 
 public sealed record ShowDto(
     Guid Id,
@@ -42,6 +45,7 @@ public sealed record MerchItemDto(
     string ImageUrl,
     IReadOnlyList<string> ImageUrls,
     bool IsActive,
+    bool HasSizes,
     IReadOnlyList<MerchVariantDto> Variants);
 
 public sealed record MerchVariantDto(

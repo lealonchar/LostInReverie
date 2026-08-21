@@ -49,7 +49,7 @@ export default function MerchPage() {
         : null,
     [selectedItem, selectedVariantId]
   );
-  const hasAvailableSize = useMemo(
+  const hasAvailableStock = useMemo(
     () => selectedItem?.variants.some((variant) => variant.stock > 0) ?? false,
     [selectedItem]
   );
@@ -74,7 +74,7 @@ export default function MerchPage() {
 
   function openItem(item: MerchItem) {
     setSelectedItemId(item.id);
-    setSelectedVariantId("");
+    setSelectedVariantId(item.hasSizes ? "" : item.variants[0]?.id ?? "");
     setActiveImageIndex(0);
     setIsOrderModalOpen(false);
   }
@@ -104,7 +104,7 @@ export default function MerchPage() {
     setMessage("");
 
     if (!selectedItem || !selectedVariant || selectedVariant.stock <= 0) {
-      setError("Choose an available size first.");
+      setError(selectedItem?.hasSizes ? "Choose an available size first." : "This item is out of stock.");
       return;
     }
 
@@ -260,32 +260,42 @@ export default function MerchPage() {
             </div>
             {selectedItem.description && <p>{selectedItem.description}</p>}
             <p className="price">{formatMoney(selectedItem.price)}</p>
-            <label className="merch-size-picker">
-              Size
-              <select
-                disabled={!hasAvailableSize}
-                value={selectedVariantId}
-                onChange={(event) => {
-                  setSelectedVariantId(event.target.value);
-                  setError("");
-                }}
-              >
-                <option value="">
-                  {hasAvailableSize ? "Choose size" : "No sizes in stock"}
-                </option>
-                {selectedItem.variants.map((variant) => (
-                  <option
-                    disabled={variant.stock <= 0}
-                    key={variant.id}
-                    value={variant.id}
+            {selectedItem.hasSizes ? (
+              <>
+                <label className="merch-size-picker">
+                  Size
+                  <select
+                    disabled={!hasAvailableStock}
+                    value={selectedVariantId}
+                    onChange={(event) => {
+                      setSelectedVariantId(event.target.value);
+                      setError("");
+                    }}
                   >
-                    {variant.label} - {variant.stock > 0 ? `${variant.stock} left` : "out of stock"}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selectedVariant && (
-              <p className="muted">Selected size: {selectedVariant.label}</p>
+                    <option value="">
+                      {hasAvailableStock ? "Choose size" : "No sizes in stock"}
+                    </option>
+                    {selectedItem.variants.map((variant) => (
+                      <option
+                        disabled={variant.stock <= 0}
+                        key={variant.id}
+                        value={variant.id}
+                      >
+                        {variant.label} - {variant.stock > 0 ? `${variant.stock} left` : "out of stock"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedVariant && (
+                  <p className="muted">Selected size: {selectedVariant.label}</p>
+                )}
+              </>
+            ) : (
+              <p className="muted">
+                {selectedVariant && selectedVariant.stock > 0
+                  ? `${selectedVariant.stock} in stock`
+                  : "Out of stock"}
+              </p>
             )}
             <button
               className="primary-button"
@@ -327,7 +337,9 @@ export default function MerchPage() {
             <div className="single-order-line">
               <div>
                 <strong>{selectedItem.name}</strong>
-                <p className="muted">Size {selectedVariant.label}</p>
+                {selectedItem.hasSizes && (
+                  <p className="muted">Size {selectedVariant.label}</p>
+                )}
               </div>
               <span className="price">{formatMoney(selectedItem.price)}</span>
             </div>

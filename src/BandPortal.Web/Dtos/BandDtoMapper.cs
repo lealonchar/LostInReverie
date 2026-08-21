@@ -66,6 +66,7 @@ public static class BandDtoMapper
             item.ImageUrl,
             imageUrls,
             item.IsActive,
+            item.HasSizes,
             item.Variants.Select(variant => variant.ToDto()).ToList());
     }
 

@@ -40,6 +40,7 @@ type MerchDraft = {
   imageUrl: string;
   imageUrls: string[];
   isActive: boolean;
+  hasSizes: boolean;
   variants: MerchVariantDraft[];
 };
 
@@ -103,6 +104,7 @@ function emptyMerchDraft(): MerchDraft {
     imageUrl: "",
     imageUrls: [],
     isActive: true,
+    hasSizes: true,
     variants: normalizeMerchVariants()
   };
 }
@@ -118,19 +120,44 @@ function draftFromItem(item: MerchItem): MerchDraft {
     imageUrl: imageUrls[0] ?? "",
     imageUrls,
     isActive: item.isActive,
-    variants: normalizeMerchVariants(
-      item.variants.map((variant) => ({
-        id: variant.id,
-        label: variant.label,
-        sku: variant.sku,
-        stock: String(variant.stock)
-      }))
-    )
+    hasSizes: item.hasSizes,
+    variants: item.hasSizes
+      ? normalizeMerchVariants(
+          item.variants.map((variant) => ({
+            id: variant.id,
+            label: variant.label,
+            sku: variant.sku,
+            stock: String(variant.stock)
+          }))
+        )
+      : [
+          {
+            id: item.variants[0]?.id,
+            label: item.variants[0]?.label || "Stock",
+            sku: item.variants[0]?.sku || merchSku(item.name, "STOCK"),
+            stock: String(item.variants[0]?.stock ?? 0)
+          }
+        ]
   };
 }
 
 function payloadFromDraft(draft: MerchDraft): MerchInput {
   const imageUrls = normalizeImageUrls(draft.imageUrl, draft.imageUrls);
+  const variants = draft.hasSizes
+    ? normalizeMerchVariants(draft.variants).map((variant) => ({
+        id: variant.id,
+        label: variant.label.trim(),
+        sku: variant.sku.trim() || merchSku(draft.name, variant.label),
+        stock: Math.max(0, Number(variant.stock || 0))
+      }))
+    : [
+        {
+          id: draft.variants[0]?.id,
+          label: "Stock",
+          sku: draft.variants[0]?.sku.trim() || merchSku(draft.name, "STOCK"),
+          stock: Math.max(0, Number(draft.variants[0]?.stock || 0))
+        }
+      ];
 
   return {
     name: draft.name.trim(),
@@ -139,16 +166,17 @@ function payloadFromDraft(draft: MerchDraft): MerchInput {
     imageUrl: imageUrls[0] ?? "",
     imageUrls,
     isActive: draft.isActive,
-    variants: normalizeMerchVariants(draft.variants).map((variant) => ({
-      id: variant.id,
-      label: variant.label.trim(),
-      sku: variant.sku.trim() || merchSku(draft.name, variant.label),
-      stock: Math.max(0, Number(variant.stock || 0))
-    }))
+    hasSizes: draft.hasSizes,
+    variants
   };
 }
 
 function merchStockSummary(item: MerchItem) {
+  if (!item.hasSizes) {
+    const stock = item.variants[0]?.stock ?? 0;
+    return `${stock} in stock`;
+  }
+
   return normalizeMerchVariants(
     item.variants.map((variant) => ({
       id: variant.id,
@@ -1009,24 +1037,70 @@ export default function AdminPage({
               />
               Visible in store
             </label>
+            <label className="checkbox-row">
+              <input
+                checked={merchDraft.hasSizes}
+                onChange={(event) => {
+                  const hasSizes = event.target.checked;
+                  setMerchDraft((current) => ({
+                    ...current,
+                    hasSizes,
+                    variants: hasSizes
+                      ? normalizeMerchVariants(current.variants)
+                      : [
+                          {
+                            id: current.variants[0]?.id,
+                            label: "Stock",
+                            sku: current.variants[0]?.sku || merchSku(current.name, "STOCK"),
+                            stock: current.variants[0]?.stock ?? "0"
+                          }
+                        ]
+                  }));
+                }}
+                type="checkbox"
+              />
+              Show sizes
+            </label>
 
             <div className="size-stock-grid">
-              <div className="form-subheading">T-shirt stock</div>
-              {merchDraft.variants.map((variant, index) => (
-                <label className="size-stock-row" key={variant.label}>
-                  <span>{variant.label}</span>
+              <div className="form-subheading">
+                {merchDraft.hasSizes ? "Size stock" : "Stock"}
+              </div>
+              {merchDraft.hasSizes ? (
+                merchDraft.variants.map((variant, index) => (
+                  <label className="size-stock-row" key={variant.label}>
+                    <span>{variant.label}</span>
+                    <input
+                      aria-label={`${variant.label} stock`}
+                      min="0"
+                      required
+                      type="number"
+                      value={variant.stock}
+                      onChange={(event) =>
+                        updateMerchVariant(index, { stock: event.target.value })
+                      }
+                    />
+                  </label>
+                ))
+              ) : (
+                <label className="size-stock-row">
+                  <span>Total</span>
                   <input
-                    aria-label={`${variant.label} stock`}
+                    aria-label="Total stock"
                     min="0"
                     required
                     type="number"
-                    value={variant.stock}
+                    value={merchDraft.variants[0]?.stock ?? "0"}
                     onChange={(event) =>
-                      updateMerchVariant(index, { stock: event.target.value })
+                      updateMerchVariant(0, {
+                        label: "Stock",
+                        sku: merchDraft.variants[0]?.sku || merchSku(merchDraft.name, "STOCK"),
+                        stock: event.target.value
+                      })
                     }
                   />
                 </label>
-              ))}
+              )}
             </div>
 
             <div className="form-actions">
