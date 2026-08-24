@@ -1,0 +1,55 @@
+name: Deploy frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/BandPortal.Client/**"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+env:
+  ACR_LOGIN_SERVER: lirbandportalacr8689.azurecr.io
+  FRONTEND_IMAGE: bandportal-frontend
+  FRONTEND_APP: lir-frontend
+  RESOURCE_GROUP: lir-bandportal-rg
+  VITE_API_BASE_URL: https://lir-backend.nicegrass-9ec909a9.swedencentral.azurecontainerapps.io
+  VITE_CURRENCY: MKD
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push frontend image
+        run: |
+          docker build \
+            --file src/BandPortal.Client/Dockerfile \
+            --build-arg VITE_API_BASE_URL="$VITE_API_BASE_URL" \
+            --build-arg VITE_CURRENCY="$VITE_CURRENCY" \
+            --tag $ACR_LOGIN_SERVER/$FRONTEND_IMAGE:${{ github.sha }} \
+            src/BandPortal.Client
+          docker push $ACR_LOGIN_SERVER/$FRONTEND_IMAGE:${{ github.sha }}
+
+      - name: Deploy frontend container app
+        run: |
+          az containerapp update \
+            --name "$FRONTEND_APP" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$ACR_LOGIN_SERVER/$FRONTEND_IMAGE:${{ github.sha }}"

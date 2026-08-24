@@ -37,3 +37,8 @@ Thumbs.db
 # Local Docker/database folders if created
 pgdata/
 postgres-data/
+
+# One-off deployment transfer files
+lir-local.dump
+lir-uploads.tar.gz
+lir-uploads/

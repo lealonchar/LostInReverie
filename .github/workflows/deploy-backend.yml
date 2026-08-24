@@ -1,0 +1,56 @@
+name: Deploy backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "BandPortal.slnx"
+      - "NuGet/**"
+      - "src/BandPortal.Domain/**"
+      - "src/BandPortal.Repository/**"
+      - "src/BandPortal.Service/**"
+      - "src/BandPortal.Web/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+env:
+  ACR_LOGIN_SERVER: lirbandportalacr8689.azurecr.io
+  BACKEND_IMAGE: bandportal-backend
+  BACKEND_APP: lir-backend
+  RESOURCE_GROUP: lir-bandportal-rg
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push backend image
+        run: |
+          docker build \
+            --file src/BandPortal.Web/Dockerfile \
+            --tag $ACR_LOGIN_SERVER/$BACKEND_IMAGE:${{ github.sha }} \
+            .
+          docker push $ACR_LOGIN_SERVER/$BACKEND_IMAGE:${{ github.sha }}
+
+      - name: Deploy backend container app
+        run: |
+          az containerapp update \
+            --name "$BACKEND_APP" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$ACR_LOGIN_SERVER/$BACKEND_IMAGE:${{ github.sha }}"

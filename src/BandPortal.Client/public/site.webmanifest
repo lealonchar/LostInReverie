@@ -1,0 +1,19 @@
+{
+  "name": "Lost In Reverie",
+  "short_name": "Lost In Reverie",
+  "icons": [
+    {
+      "src": "/lir-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/lir-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#140d14",
+  "background_color": "#070408",
+  "display": "standalone"
+}
