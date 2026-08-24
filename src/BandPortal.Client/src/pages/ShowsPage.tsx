@@ -13,10 +13,14 @@ function showHeading(show: Show) {
 
 export default function ShowsPage() {
   const [shows, setShows] = useState<Show[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getShows().then(setShows).catch((err: Error) => setError(err.message));
+    getShows()
+      .then(setShows)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setIsLoading(false));
   }, []);
 
   return (
@@ -29,7 +33,8 @@ export default function ShowsPage() {
       {error && <p className="alert">{error}</p>}
 
       <div className="list-stack">
-        {shows.length === 0 && <p className="empty-state">No upcoming shows yet.</p>}
+        {isLoading && <p className="loading-state">Loading shows...</p>}
+        {!isLoading && shows.length === 0 && <p className="empty-state">No upcoming shows yet.</p>}
         {shows.map((show) => (
           <article className="show-card" key={show.id}>
             <div>

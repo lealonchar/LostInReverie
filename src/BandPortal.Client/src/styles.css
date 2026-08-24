@@ -1472,7 +1472,8 @@ select:focus {
 
 .alert,
 .success,
-.empty-state {
+.empty-state,
+.loading-state {
   margin: 0;
   padding: 10px 12px;
   border-radius: 4px;
@@ -1494,6 +1495,14 @@ select:focus {
 .empty-state {
   border: 1px dashed #53364f;
   background: var(--bg-soft);
+  color: var(--muted);
+}
+
+.loading-state {
+  border: 1px solid rgba(255, 49, 86, 0.32);
+  background:
+    linear-gradient(90deg, rgba(255, 49, 86, 0.08), transparent),
+    var(--bg-soft);
   color: var(--muted);
 }
 

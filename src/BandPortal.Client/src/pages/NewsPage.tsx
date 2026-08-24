@@ -19,10 +19,14 @@ function PostContent({ post }: { post: NewsPost }) {
 
 export default function NewsPage() {
   const [posts, setPosts] = useState<NewsPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getNews().then(setPosts).catch((err: Error) => setError(err.message));
+    getNews()
+      .then(setPosts)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setIsLoading(false));
   }, []);
 
   return (
@@ -35,7 +39,8 @@ export default function NewsPage() {
       {error && <p className="alert">{error}</p>}
 
       <div className="post-grid">
-        {posts.length === 0 && <p className="empty-state">No posts yet.</p>}
+        {isLoading && <p className="loading-state">Loading posts...</p>}
+        {!isLoading && posts.length === 0 && <p className="empty-state">No posts yet.</p>}
         {posts.map((post) =>
           post.linkUrl ? (
             <a

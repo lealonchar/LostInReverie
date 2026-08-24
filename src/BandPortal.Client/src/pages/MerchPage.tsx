@@ -32,6 +32,7 @@ export default function MerchPage() {
     notes: ""
   });
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   const selectedItem = useMemo(
@@ -57,7 +58,11 @@ export default function MerchPage() {
   const total = selectedItem?.price ?? 0;
 
   function loadMerch() {
-    getMerch().then(setItems).catch((err: Error) => setError(err.message));
+    setIsLoading(true);
+    getMerch()
+      .then(setItems)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setIsLoading(false));
   }
 
   useEffect(loadMerch, []);
@@ -159,7 +164,8 @@ export default function MerchPage() {
 
       {!selectedItem && (
         <div className="merch-grid merch-grid--catalog">
-          {items.length === 0 && <p className="empty-state">No merch available yet.</p>}
+          {isLoading && <p className="loading-state">Loading merch...</p>}
+          {!isLoading && items.length === 0 && <p className="empty-state">No merch available yet.</p>}
           {items.map((item) => {
             const coverImageUrl = getMerchImages(item)[0];
 

@@ -229,10 +229,14 @@ export default function MusicPage() {
   const [releases, setReleases] = useState<MusicRelease[]>([]);
   const [selectedRelease, setSelectedRelease] = useState<MusicRelease | null>(null);
   const [isPlayerLoaded, setIsPlayerLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getMusic().then(setReleases).catch((err: Error) => setError(err.message));
+    getMusic()
+      .then(setReleases)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setIsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -252,7 +256,8 @@ export default function MusicPage() {
       {error && <p className="alert">{error}</p>}
 
       <div className="music-grid">
-        {releases.length === 0 && <p className="empty-state">No releases yet.</p>}
+        {isLoading && <p className="loading-state">Loading music...</p>}
+        {!isLoading && releases.length === 0 && <p className="empty-state">No releases yet.</p>}
         {releases.map((release) => (
           <button
             className="music-card"
