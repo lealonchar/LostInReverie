@@ -11,6 +11,12 @@ type CustomerForm = {
   notes: string;
 };
 
+type MerchPageProps = {
+  selectedItemId: string | null;
+  onCloseItem: () => void;
+  onOpenItem: (itemId: string) => void;
+};
+
 function getMerchImages(item: MerchItem) {
   return [item.imageUrl, ...(item.imageUrls ?? [])]
     .map((url) => url.trim())
@@ -18,9 +24,12 @@ function getMerchImages(item: MerchItem) {
     .filter((url, index, urls) => urls.indexOf(url) === index);
 }
 
-export default function MerchPage() {
+export default function MerchPage({
+  selectedItemId,
+  onCloseItem,
+  onOpenItem
+}: MerchPageProps) {
   const [items, setItems] = useState<MerchItem[]>([]);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState("");
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -72,20 +81,26 @@ export default function MerchPage() {
   }, [selectedItemId]);
 
   useEffect(() => {
+    if (!isLoading && selectedItemId && !selectedItem) {
+      onCloseItem();
+    }
+  }, [isLoading, onCloseItem, selectedItem, selectedItemId]);
+
+  useEffect(() => {
     if (selectedImages.length > 0 && activeImageIndex >= selectedImages.length) {
       setActiveImageIndex(selectedImages.length - 1);
     }
   }, [activeImageIndex, selectedImages.length]);
 
   function openItem(item: MerchItem) {
-    setSelectedItemId(item.id);
+    onOpenItem(item.id);
     setSelectedVariantId(item.hasSizes ? "" : item.variants[0]?.id ?? "");
     setActiveImageIndex(0);
     setIsOrderModalOpen(false);
   }
 
   function closeItem() {
-    setSelectedItemId(null);
+    onCloseItem();
     setSelectedVariantId("");
     setActiveImageIndex(0);
     setIsOrderModalOpen(false);

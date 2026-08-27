@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { getAdminMerch } from "./api/client";
 import AboutPage from "./pages/AboutPage";
 import AdminPage from "./pages/AdminPage";
@@ -17,12 +17,29 @@ const tabs: Array<{ id: Tab; label: string }> = [
   { id: "about", label: "About" }
 ];
 
+function cleanHash(hash: string) {
+  return hash.replace(/^#/, "");
+}
+
+function tabFromHash(hash: string): Tab | null {
+  const tab = cleanHash(hash).split("/")[0];
+  return tabs.some((item) => item.id === tab) ? (tab as Tab) : null;
+}
+
+function merchItemIdFromHash(hash: string) {
+  const [tab, itemId] = cleanHash(hash).split("/");
+  return tab === "merch" && itemId ? decodeURIComponent(itemId) : null;
+}
+
 function getSavedAdminToken() {
   return localStorage.getItem("bandAdminToken")?.trim() ?? "";
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("shows");
+  const [activeTab, setActiveTab] = useState<Tab>(() => tabFromHash(window.location.hash) ?? "shows");
+  const [selectedMerchItemId, setSelectedMerchItemId] = useState<string | null>(() =>
+    merchItemIdFromHash(window.location.hash)
+  );
   const [isAdminOpen, setIsAdminOpen] = useState(window.location.hash === "#admin");
   const [adminToken, setAdminToken] = useState(getSavedAdminToken);
   const [unlockToken, setUnlockToken] = useState("");
@@ -32,51 +49,77 @@ export default function App() {
   const hasAdminAccess = Boolean(adminToken);
 
   useEffect(() => {
-    function syncAdminRoute() {
+    function syncRoute() {
+      const nextTab = tabFromHash(window.location.hash);
+
+      if (nextTab) {
+        setActiveTab(nextTab);
+        setSelectedMerchItemId(merchItemIdFromHash(window.location.hash));
+        setIsAdminOpen(false);
+        return;
+      }
+
+      setSelectedMerchItemId(null);
       setIsAdminOpen(window.location.hash === "#admin");
     }
 
-    window.addEventListener("hashchange", syncAdminRoute);
-    return () => window.removeEventListener("hashchange", syncAdminRoute);
+    window.addEventListener("hashchange", syncRoute);
+    window.addEventListener("popstate", syncRoute);
+
+    return () => {
+      window.removeEventListener("hashchange", syncRoute);
+      window.removeEventListener("popstate", syncRoute);
+    };
   }, []);
 
   function selectTab(tab: Tab) {
     setActiveTab(tab);
+    setSelectedMerchItemId(null);
     setIsAdminOpen(false);
-
-    if (window.location.hash === "#admin") {
-      window.history.pushState(
-        "",
-        document.title,
-        `${window.location.pathname}${window.location.search}`
-      );
-    }
+    window.history.pushState(
+      "",
+      document.title,
+      `${window.location.pathname}${window.location.search}#${tab}`
+    );
   }
+
+  const openMerchItem = useCallback((itemId: string) => {
+    setSelectedMerchItemId(itemId);
+    window.history.pushState(
+      "",
+      document.title,
+      `${window.location.pathname}${window.location.search}#merch/${encodeURIComponent(itemId)}`
+    );
+  }, []);
+
+  const closeMerchItem = useCallback(() => {
+    setSelectedMerchItemId(null);
+    window.history.pushState(
+      "",
+      document.title,
+      `${window.location.pathname}${window.location.search}#merch`
+    );
+  }, []);
 
   function closeAdminUnlock() {
     setIsAdminOpen(false);
     setUnlockToken("");
     setUnlockError("");
 
-    if (window.location.hash === "#admin") {
-      window.history.pushState(
-        "",
-        document.title,
-        `${window.location.pathname}${window.location.search}`
-      );
-    }
+    window.history.pushState(
+      "",
+      document.title,
+      `${window.location.pathname}${window.location.search}#${activeTab}`
+    );
   }
 
   function closeAdminPage() {
     setIsAdminOpen(false);
-
-    if (window.location.hash === "#admin") {
-      window.history.pushState(
-        "",
-        document.title,
-        `${window.location.pathname}${window.location.search}`
-      );
-    }
+    window.history.pushState(
+      "",
+      document.title,
+      `${window.location.pathname}${window.location.search}#${activeTab}`
+    );
   }
 
   function lockAdmin(message = "") {
@@ -164,7 +207,13 @@ export default function App() {
         {activeTab === "shows" && <ShowsPage />}
         {activeTab === "news" && <NewsPage />}
         {activeTab === "music" && <MusicPage />}
-        {activeTab === "merch" && <MerchPage />}
+        {activeTab === "merch" && (
+          <MerchPage
+            selectedItemId={selectedMerchItemId}
+            onCloseItem={closeMerchItem}
+            onOpenItem={openMerchItem}
+          />
+        )}
         {activeTab === "about" && <AboutPage />}
       </main>
 
