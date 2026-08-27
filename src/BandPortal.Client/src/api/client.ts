@@ -15,7 +15,6 @@ const UPLOAD_IMAGE_QUALITY = 0.82;
 export type MerchVariantInput = {
   id?: string;
   label: string;
-  sku: string;
   stock: number;
 };
 
@@ -36,8 +35,6 @@ export type MusicInput = {
   releaseYear: number;
   coverImageUrl: string;
   listenUrl: string;
-  embedUrl?: string;
-  isPublished: boolean;
   links: Array<{ platform: string; url: string }>;
 };
 

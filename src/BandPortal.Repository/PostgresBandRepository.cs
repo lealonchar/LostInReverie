@@ -247,7 +247,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
         CancellationToken cancellationToken)
     {
         const string releasesSql = """
-            select id, title, release_type, release_year, cover_image_url, listen_url, embed_url, is_published
+            select id, title, release_type, release_year, cover_image_url, listen_url
             from music_releases
             order by release_year desc, title;
             """;
@@ -274,8 +274,6 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                     ReleaseYear = reader.GetInt32(3),
                     CoverImageUrl = reader.GetString(4),
                     ListenUrl = reader.GetString(5),
-                    EmbedUrl = reader.IsDBNull(6) ? null : reader.GetString(6),
-                    IsPublished = reader.GetBoolean(7),
                     Links = []
                 };
                 releases.Add(release);
@@ -319,7 +317,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             """;
 
         const string variantsSql = """
-            select id, merch_item_id, label, sku, stock
+            select id, merch_item_id, label, stock
             from merch_variants
             order by label;
             """;
@@ -371,8 +369,7 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                 {
                     Id = reader.GetGuid(0),
                     Label = reader.GetString(2),
-                    Sku = reader.GetString(3),
-                    Stock = reader.GetInt32(4)
+                    Stock = reader.GetInt32(3)
                 });
             }
         }
@@ -500,7 +497,6 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             delete from music_releases;
             delete from news_posts;
             delete from shows;
-            delete from about_resources;
             delete from about_images;
             delete from about_content;
             """,
@@ -613,9 +609,9 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                 transaction,
                 """
                 insert into music_releases (
-                    id, title, release_type, release_year, cover_image_url, listen_url, embed_url, is_published)
+                    id, title, release_type, release_year, cover_image_url, listen_url)
                 values (
-                    @id, @title, @release_type, @release_year, @cover_image_url, @listen_url, @embed_url, @is_published);
+                    @id, @title, @release_type, @release_year, @cover_image_url, @listen_url);
                 """,
                 command =>
                 {
@@ -625,8 +621,6 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                     command.Parameters.AddWithValue("release_year", release.ReleaseYear);
                     command.Parameters.AddWithValue("cover_image_url", release.CoverImageUrl);
                     command.Parameters.AddWithValue("listen_url", release.ListenUrl);
-                    command.Parameters.AddWithValue("embed_url", (object?)release.EmbedUrl ?? DBNull.Value);
-                    command.Parameters.AddWithValue("is_published", release.IsPublished);
                 },
                 cancellationToken);
 
@@ -701,15 +695,14 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
                     connection,
                     transaction,
                     """
-                    insert into merch_variants (id, merch_item_id, label, sku, stock)
-                    values (@id, @merch_item_id, @label, @sku, @stock);
+                    insert into merch_variants (id, merch_item_id, label, stock)
+                    values (@id, @merch_item_id, @label, @stock);
                     """,
                     command =>
                     {
                         command.Parameters.AddWithValue("id", variant.Id);
                         command.Parameters.AddWithValue("merch_item_id", item.Id);
                         command.Parameters.AddWithValue("label", variant.Label);
-                        command.Parameters.AddWithValue("sku", variant.Sku);
                         command.Parameters.AddWithValue("stock", variant.Stock);
                     },
                     cancellationToken);
@@ -839,13 +832,6 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             image_url text not null
         );
 
-        create table if not exists about_resources (
-            id uuid primary key,
-            resource_index integer not null,
-            title text not null,
-            file_url text not null
-        );
-
         create table if not exists news_posts (
             id uuid primary key,
             title text not null,
@@ -865,10 +851,12 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             release_type text not null,
             release_year integer not null,
             cover_image_url text not null,
-            listen_url text not null,
-            embed_url text null,
-            is_published boolean not null
+            listen_url text not null
         );
+
+        alter table music_releases
+            drop column if exists embed_url,
+            drop column if exists is_published;
 
         create table if not exists music_release_links (
             id uuid primary key,
@@ -899,9 +887,13 @@ public sealed class PostgresBandRepository(string connectionString) : IBandRepos
             id uuid primary key,
             merch_item_id uuid not null references merch_items(id) on delete cascade,
             label text not null,
-            sku text not null,
             stock integer not null check (stock >= 0)
         );
+
+        alter table merch_variants
+            drop column if exists sku;
+
+        drop table if exists about_resources;
 
         create table if not exists order_requests (
             id uuid primary key,

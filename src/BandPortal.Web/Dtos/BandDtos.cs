@@ -45,8 +45,6 @@ public sealed record MusicReleaseDto(
     int ReleaseYear,
     string CoverImageUrl,
     string ListenUrl,
-    string? EmbedUrl,
-    bool IsPublished,
     IReadOnlyList<MusicPlatformLinkDto> Links);
 
 public sealed record MusicPlatformLinkDto(
@@ -68,7 +66,6 @@ public sealed record MerchItemDto(
 public sealed record MerchVariantDto(
     Guid Id,
     string Label,
-    string Sku,
     int Stock);
 
 public sealed record OrderRequestDto(

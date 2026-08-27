@@ -192,8 +192,8 @@ function platformLinksFor(release: MusicRelease) {
     });
 }
 
-function embedUrlFor(release: MusicRelease) {
-  const rawUrl = extractUrl(release.embedUrl || release.listenUrl);
+function playerUrlFor(release: MusicRelease) {
+  const rawUrl = extractUrl(release.listenUrl);
 
   try {
     const url = new URL(rawUrl);
@@ -222,7 +222,7 @@ function embedUrlFor(release: MusicRelease) {
     return "";
   }
 
-  return release.embedUrl ?? "";
+  return "";
 }
 
 export default function MusicPage() {
@@ -243,7 +243,7 @@ export default function MusicPage() {
     setIsPlayerLoaded(false);
   }, [selectedRelease?.id]);
 
-  const playerUrl = selectedRelease ? embedUrlFor(selectedRelease) : "";
+  const playerUrl = selectedRelease ? playerUrlFor(selectedRelease) : "";
   const platformLinks = selectedRelease ? platformLinksFor(selectedRelease) : [];
 
   return (

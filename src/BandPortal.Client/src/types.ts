@@ -45,8 +45,6 @@ export type MusicRelease = {
   releaseYear: number;
   coverImageUrl: string;
   listenUrl: string;
-  embedUrl?: string | null;
-  isPublished: boolean;
   links: MusicPlatformLink[];
 };
 
@@ -71,7 +69,6 @@ export type MerchItem = {
 export type MerchVariant = {
   id: string;
   label: string;
-  sku: string;
   stock: number;
 };
 

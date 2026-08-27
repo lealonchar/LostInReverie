@@ -6,16 +6,6 @@ namespace BandPortal.Service.Services;
 
 public sealed class MusicService(IBandRepository repository)
 {
-    public async Task<IReadOnlyList<MusicRelease>> GetPublishedAsync(CancellationToken cancellationToken = default)
-    {
-        var releases = await repository.GetMusicAsync(cancellationToken);
-        return releases
-            .Where(release => release.IsPublished)
-            .OrderByDescending(release => release.ReleaseYear)
-            .ThenBy(release => release.Title)
-            .ToList();
-    }
-
     public async Task<IReadOnlyList<MusicRelease>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         var releases = await repository.GetMusicAsync(cancellationToken);
@@ -80,8 +70,6 @@ public sealed class MusicService(IBandRepository repository)
         release.ReleaseYear = draft.ReleaseYear;
         release.CoverImageUrl = draft.CoverImageUrl.Trim();
         release.ListenUrl = draft.ListenUrl.Trim();
-        release.EmbedUrl = string.IsNullOrWhiteSpace(draft.EmbedUrl) ? null : draft.EmbedUrl.Trim();
-        release.IsPublished = draft.IsPublished;
         release.Links = draft.Links
             .Where(link => !string.IsNullOrWhiteSpace(link.Platform) && !string.IsNullOrWhiteSpace(link.Url))
             .Select(link => new MusicPlatformLink

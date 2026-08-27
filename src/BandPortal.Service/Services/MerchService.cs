@@ -106,7 +106,6 @@ public sealed class MerchService(IBandRepository repository)
             {
                 Id = variant.Id ?? Guid.NewGuid(),
                 Label = variant.Label.Trim(),
-                Sku = variant.Sku.Trim(),
                 Stock = Math.Max(0, variant.Stock)
             })
             .ToList();

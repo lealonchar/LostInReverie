@@ -27,7 +27,5 @@ public sealed class MerchVariant
 
     public string Label { get; set; } = "";
 
-    public string Sku { get; set; } = "";
-
     public int Stock { get; set; }
 }

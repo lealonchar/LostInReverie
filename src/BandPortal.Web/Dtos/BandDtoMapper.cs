@@ -61,8 +61,6 @@ public static class BandDtoMapper
             release.ReleaseYear,
             release.CoverImageUrl,
             release.ListenUrl,
-            release.EmbedUrl,
-            release.IsPublished,
             release.Links.Select(link => link.ToDto()).ToList());
     }
 
@@ -99,7 +97,6 @@ public static class BandDtoMapper
         return new MerchVariantDto(
             variant.Id,
             variant.Label,
-            variant.Sku,
             variant.Stock);
     }
 

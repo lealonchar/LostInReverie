@@ -53,7 +53,6 @@ type AboutForm = {
 type MerchVariantDraft = {
   id?: string;
   label: string;
-  sku: string;
   stock: string;
 };
 
@@ -143,20 +142,9 @@ function normalizeMerchVariants(
     return {
       id: variant?.id,
       label: size,
-      sku: variant?.sku ?? "",
       stock: variant?.stock ?? "0"
     };
   });
-}
-
-function merchSku(name: string, size: string) {
-  const slug = name
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  return `${slug || "MERCH"}-${size}`;
 }
 
 function normalizeImageUrls(imageUrl: string, imageUrls: string[] = []) {
@@ -196,7 +184,6 @@ function draftFromItem(item: MerchItem): MerchDraft {
           item.variants.map((variant) => ({
             id: variant.id,
             label: variant.label,
-            sku: variant.sku,
             stock: String(variant.stock)
           }))
         )
@@ -204,7 +191,6 @@ function draftFromItem(item: MerchItem): MerchDraft {
           {
             id: item.variants[0]?.id,
             label: item.variants[0]?.label || "Stock",
-            sku: item.variants[0]?.sku || merchSku(item.name, "STOCK"),
             stock: String(item.variants[0]?.stock ?? 0)
           }
         ]
@@ -217,14 +203,12 @@ function payloadFromDraft(draft: MerchDraft): MerchInput {
     ? normalizeMerchVariants(draft.variants).map((variant) => ({
         id: variant.id,
         label: variant.label.trim(),
-        sku: variant.sku.trim() || merchSku(draft.name, variant.label),
         stock: Math.max(0, Number(variant.stock || 0))
       }))
     : [
         {
           id: draft.variants[0]?.id,
           label: "Stock",
-          sku: draft.variants[0]?.sku.trim() || merchSku(draft.name, "STOCK"),
           stock: Math.max(0, Number(draft.variants[0]?.stock || 0))
         }
       ];
@@ -251,7 +235,6 @@ function merchStockSummary(item: MerchItem) {
     item.variants.map((variant) => ({
       id: variant.id,
       label: variant.label,
-      sku: variant.sku,
       stock: String(variant.stock)
     }))
   )
@@ -460,8 +443,6 @@ function musicPayloadFromForm(form: MusicForm): MusicInput {
     releaseYear: Number(form.releaseYear),
     coverImageUrl: form.coverImageUrl.trim(),
     listenUrl: spotifyUrl,
-    embedUrl: "",
-    isPublished: true,
     links: musicPlatforms
       .map((platform) => ({
         platform,
@@ -551,6 +532,19 @@ export default function AdminPage({
   useEffect(() => {
     void refreshAll(adminToken);
   }, [adminToken]);
+
+  useEffect(() => {
+    if (!message && !error) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setMessage("");
+      setError("");
+    }, 5200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [error, message]);
 
   async function submitAbout(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1054,6 +1048,15 @@ export default function AdminPage({
 
       {message && <p className="success">{message}</p>}
       {error && <p className="alert">{error}</p>}
+      {(message || error) && (
+        <div
+          aria-live="polite"
+          className={error ? "admin-toast admin-toast--error" : "admin-toast"}
+          role="status"
+        >
+          {error || message}
+        </div>
+      )}
 
       <div className="admin-tabs" aria-label="Admin tabs">
         {adminTabs.map((tab) => (
@@ -1681,7 +1684,6 @@ export default function AdminPage({
                           {
                             id: current.variants[0]?.id,
                             label: "Stock",
-                            sku: current.variants[0]?.sku || merchSku(current.name, "STOCK"),
                             stock: current.variants[0]?.stock ?? "0"
                           }
                         ]
@@ -1724,7 +1726,6 @@ export default function AdminPage({
                     onChange={(event) =>
                       updateMerchVariant(0, {
                         label: "Stock",
-                        sku: merchDraft.variants[0]?.sku || merchSku(merchDraft.name, "STOCK"),
                         stock: event.target.value
                       })
                     }

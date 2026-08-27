@@ -14,10 +14,6 @@ public sealed class MusicRelease
 
     public string ListenUrl { get; set; } = "";
 
-    public string? EmbedUrl { get; set; }
-
-    public bool IsPublished { get; set; } = true;
-
     public List<MusicPlatformLink> Links { get; set; } = [];
 }
 

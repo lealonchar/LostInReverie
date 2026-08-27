@@ -39,7 +39,7 @@ public static class PublicEndpoints
             MusicService musicService,
             CancellationToken cancellationToken) =>
         {
-            var releases = await musicService.GetPublishedAsync(cancellationToken);
+            var releases = await musicService.GetAllAsync(cancellationToken);
             return releases.Select(release => release.ToDto()).ToList();
         });
 

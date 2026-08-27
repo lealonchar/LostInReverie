@@ -40,8 +40,6 @@ public sealed record MusicReleaseDraft(
     int ReleaseYear,
     string CoverImageUrl,
     string ListenUrl,
-    string? EmbedUrl,
-    bool IsPublished,
     IReadOnlyList<MusicPlatformLinkDraft> Links);
 
 public sealed record MusicPlatformLinkDraft(
@@ -61,7 +59,6 @@ public sealed record MerchItemDraft(
 public sealed record MerchVariantDraft(
     Guid? Id,
     string Label,
-    string Sku,
     int Stock);
 
 public sealed record OrderDraft(

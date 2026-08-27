@@ -38,8 +38,6 @@ public sealed record CreateMusicReleaseRequest(
     int ReleaseYear,
     string CoverImageUrl,
     string ListenUrl,
-    string? EmbedUrl,
-    bool IsPublished,
     List<CreateMusicPlatformLinkRequest>? Links);
 
 public sealed record CreateMusicPlatformLinkRequest(
@@ -59,7 +57,6 @@ public sealed record UpsertMerchItemRequest(
 public sealed record UpsertMerchVariantRequest(
     Guid? Id,
     string Label,
-    string Sku,
     int Stock);
 
 public sealed record SetStockRequest(int Stock);

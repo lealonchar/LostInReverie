@@ -165,8 +165,6 @@ public static class AdminEndpoints
                 request.ReleaseYear,
                 request.CoverImageUrl,
                 request.ListenUrl,
-                request.EmbedUrl,
-                request.IsPublished,
                 request.Links?
                     .Select(link => new MusicPlatformLinkDraft(link.Platform, link.Url))
                     .ToList() ?? []), cancellationToken);
@@ -188,8 +186,6 @@ public static class AdminEndpoints
                 request.ReleaseYear,
                 request.CoverImageUrl,
                 request.ListenUrl,
-                request.EmbedUrl,
-                request.IsPublished,
                 request.Links?
                     .Select(link => new MusicPlatformLinkDraft(link.Platform, link.Url))
                     .ToList() ?? []), cancellationToken);
@@ -373,7 +369,6 @@ public static class AdminEndpoints
                 .Select(variant => new MerchVariantDraft(
                     variant.Id,
                     variant.Label,
-                    variant.Sku,
                     variant.Stock))
                 .ToList());
     }
