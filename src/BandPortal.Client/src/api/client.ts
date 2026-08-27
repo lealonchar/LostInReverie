@@ -8,6 +8,9 @@ import type {
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
+const COMPRESSIBLE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_UPLOAD_IMAGE_DIMENSION = 1600;
+const UPLOAD_IMAGE_QUALITY = 0.82;
 
 export type MerchVariantInput = {
   id?: string;
@@ -80,6 +83,73 @@ async function request<T>(
   }
 
   return response.json() as Promise<T>;
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+
+        reject(new Error("Could not compress image."));
+      },
+      type,
+      quality
+    );
+  });
+}
+
+function compressedFileName(fileName: string) {
+  return fileName.replace(/\.[^.]+$/, "") + ".webp";
+}
+
+async function compressImageForUpload(file: File) {
+  if (!COMPRESSIBLE_IMAGE_TYPES.has(file.type)) {
+    return file;
+  }
+
+  const imageUrl = URL.createObjectURL(file);
+
+  try {
+    const image = new Image();
+    image.src = imageUrl;
+    await image.decode();
+
+    const scale = Math.min(
+      1,
+      MAX_UPLOAD_IMAGE_DIMENSION / image.naturalWidth,
+      MAX_UPLOAD_IMAGE_DIMENSION / image.naturalHeight
+    );
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+
+    const context = canvas.getContext("2d");
+    if (!context) {
+      return file;
+    }
+
+    context.drawImage(image, 0, 0, width, height);
+
+    const blob = await canvasToBlob(canvas, "image/webp", UPLOAD_IMAGE_QUALITY);
+    if (blob.size >= file.size) {
+      return file;
+    }
+
+    return new File([blob], compressedFileName(file.name), {
+      type: "image/webp",
+      lastModified: Date.now()
+    });
+  } catch {
+    return file;
+  } finally {
+    URL.revokeObjectURL(imageUrl);
+  }
 }
 
 export function getShows() {
@@ -279,9 +349,10 @@ export function setVariantStock(
   );
 }
 
-export function uploadMerchImage(adminToken: string, file: File) {
+export async function uploadMerchImage(adminToken: string, file: File) {
+  const uploadFile = await compressImageForUpload(file);
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", uploadFile);
 
   return request<{ imageUrl: string }>(
     "/api/admin/uploads/images",
