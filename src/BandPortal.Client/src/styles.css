@@ -556,23 +556,24 @@ a:hover {
 .music-detail__player {
   position: relative;
   width: 100%;
-  height: min(388px, calc(100vw - 64px));
+  height: 388px;
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #872b2b;
+  background: #121212;
 }
 
 .music-detail__player iframe {
   position: relative;
   z-index: 1;
   display: block;
-  width: calc(100% + 4px);
-  height: calc(100% + 4px);
-  margin: -2px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   border: 0;
-  border-radius: 0;
+  border-radius: 6px;
+  background: #121212;
 }
 
 .music-player-loading {
@@ -795,6 +796,11 @@ a:hover {
 
 .merch-card__meta {
   flex-wrap: wrap;
+}
+
+.merch-detail-toolbar {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .merch-detail {
@@ -1633,6 +1639,18 @@ select:focus {
     justify-self: center;
   }
 
+  .music-modal {
+    width: min(100%, 430px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .music-detail__player {
+    width: 100%;
+    max-width: 388px;
+    height: min(520px, calc(100dvh - 250px));
+    min-height: 430px;
+  }
+
   .resource-editor-row {
     grid-template-columns: 1fr;
   }
@@ -1674,6 +1692,14 @@ select:focus {
   .merch-detail {
     width: 100%;
     justify-self: center;
+  }
+
+  .merch-detail-toolbar {
+    justify-content: stretch;
+  }
+
+  .merch-detail-toolbar .secondary-button {
+    width: 100%;
   }
 
   .merch-detail__media {
@@ -1784,6 +1810,11 @@ select:focus {
 
   .music-card {
     padding-bottom: 12px;
+  }
+
+  .music-detail__player {
+    height: min(500px, calc(100dvh - 230px));
+    min-height: 400px;
   }
 
   .music-card span,
