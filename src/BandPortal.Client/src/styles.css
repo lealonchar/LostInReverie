@@ -798,11 +798,6 @@ a:hover {
   flex-wrap: wrap;
 }
 
-.merch-detail-toolbar {
-  display: flex;
-  justify-content: flex-start;
-}
-
 .merch-detail {
   display: grid;
   grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
@@ -940,6 +935,10 @@ a:hover {
   gap: 16px;
   align-content: start;
   padding: clamp(18px, 3vw, 28px);
+}
+
+.merch-detail__mobile-back {
+  display: none;
 }
 
 .order-summary {
@@ -1694,11 +1693,13 @@ select:focus {
     justify-self: center;
   }
 
-  .merch-detail-toolbar {
-    justify-content: stretch;
+  .merch-detail__desktop-back {
+    display: none;
   }
 
-  .merch-detail-toolbar .secondary-button {
+  .merch-detail__mobile-back {
+    display: inline-flex;
+    justify-content: center;
     width: 100%;
   }
 

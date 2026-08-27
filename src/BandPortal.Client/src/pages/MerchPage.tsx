@@ -198,128 +198,135 @@ export default function MerchPage() {
       )}
 
       {selectedItem && (
-        <>
-          <div className="merch-detail-toolbar">
-            <button className="secondary-button" onClick={closeItem} type="button">
+        <article className="merch-detail">
+          <div className="merch-detail__media">
+            {selectedImages.length > 0 ? (
+              <div className="merch-carousel" aria-label={`${selectedItem.name} images`}>
+                <div
+                  className="merch-carousel__track"
+                  style={{ transform: `translateX(-${activeImageIndex * 100}%)` }}
+                >
+                  {selectedImages.map((imageUrl, index) => (
+                    <img
+                      src={imageUrl}
+                      alt={`${selectedItem.name} ${index + 1}`}
+                      key={imageUrl}
+                    />
+                  ))}
+                </div>
+                {selectedImages.length > 1 && (
+                  <>
+                    <button
+                      aria-label="Previous image"
+                      className="merch-carousel__nav merch-carousel__nav--previous"
+                      onClick={showPreviousImage}
+                      type="button"
+                    >
+                      {"<"}
+                    </button>
+                    <button
+                      aria-label="Next image"
+                      className="merch-carousel__nav merch-carousel__nav--next"
+                      onClick={showNextImage}
+                      type="button"
+                    >
+                      {">"}
+                    </button>
+                    <div className="merch-carousel__dots" aria-label="Image position">
+                      {selectedImages.map((imageUrl, index) => (
+                        <button
+                          aria-label={`Show image ${index + 1}`}
+                          className={
+                            index === activeImageIndex
+                              ? "merch-carousel__dot merch-carousel__dot--active"
+                              : "merch-carousel__dot"
+                          }
+                          key={imageUrl}
+                          onClick={() => setActiveImageIndex(index)}
+                          type="button"
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="merch-placeholder" aria-hidden="true" />
+            )}
+          </div>
+          <div className="merch-detail__body">
+            <div className="merch-detail__top">
+              <div className="section-heading section-heading--compact">
+                <p className="eyebrow">Merch</p>
+                <h2>{selectedItem.name}</h2>
+              </div>
+              <button
+                className="secondary-button merch-detail__desktop-back"
+                onClick={closeItem}
+                type="button"
+              >
+                Back
+              </button>
+            </div>
+            {selectedItem.description && <p>{selectedItem.description}</p>}
+            <p className="price">{formatMoney(selectedItem.price)}</p>
+            {selectedItem.hasSizes ? (
+              <>
+                <label className="merch-size-picker">
+                  Size
+                  <select
+                    disabled={!hasAvailableStock}
+                    value={selectedVariantId}
+                    onChange={(event) => {
+                      setSelectedVariantId(event.target.value);
+                      setError("");
+                    }}
+                  >
+                    <option value="">
+                      {hasAvailableStock ? "Choose size" : "No sizes in stock"}
+                    </option>
+                    {selectedItem.variants.map((variant) => (
+                      <option
+                        disabled={variant.stock <= 0}
+                        key={variant.id}
+                        value={variant.id}
+                      >
+                        {variant.label} - {variant.stock > 0 ? `${variant.stock} left` : "out of stock"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedVariant && (
+                  <p className="muted">Selected size: {selectedVariant.label}</p>
+                )}
+              </>
+            ) : (
+              <p className="muted">
+                {selectedVariant && selectedVariant.stock > 0
+                  ? `${selectedVariant.stock} in stock`
+                  : "Out of stock"}
+              </p>
+            )}
+            <button
+              className="primary-button"
+              disabled={!canRequestOrder}
+              onClick={() => {
+                setError("");
+                setIsOrderModalOpen(true);
+              }}
+              type="button"
+            >
+              Order Request
+            </button>
+            <button
+              className="secondary-button merch-detail__mobile-back"
+              onClick={closeItem}
+              type="button"
+            >
               Back to merch
             </button>
           </div>
-          <article className="merch-detail">
-            <div className="merch-detail__media">
-              {selectedImages.length > 0 ? (
-                <div className="merch-carousel" aria-label={`${selectedItem.name} images`}>
-                  <div
-                    className="merch-carousel__track"
-                    style={{ transform: `translateX(-${activeImageIndex * 100}%)` }}
-                  >
-                    {selectedImages.map((imageUrl, index) => (
-                      <img
-                        src={imageUrl}
-                        alt={`${selectedItem.name} ${index + 1}`}
-                        key={imageUrl}
-                      />
-                    ))}
-                  </div>
-                  {selectedImages.length > 1 && (
-                    <>
-                      <button
-                        aria-label="Previous image"
-                        className="merch-carousel__nav merch-carousel__nav--previous"
-                        onClick={showPreviousImage}
-                        type="button"
-                      >
-                        {"<"}
-                      </button>
-                      <button
-                        aria-label="Next image"
-                        className="merch-carousel__nav merch-carousel__nav--next"
-                        onClick={showNextImage}
-                        type="button"
-                      >
-                        {">"}
-                      </button>
-                      <div className="merch-carousel__dots" aria-label="Image position">
-                        {selectedImages.map((imageUrl, index) => (
-                          <button
-                            aria-label={`Show image ${index + 1}`}
-                            className={
-                              index === activeImageIndex
-                                ? "merch-carousel__dot merch-carousel__dot--active"
-                                : "merch-carousel__dot"
-                            }
-                            key={imageUrl}
-                            onClick={() => setActiveImageIndex(index)}
-                            type="button"
-                          />
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <div className="merch-placeholder" aria-hidden="true" />
-              )}
-            </div>
-            <div className="merch-detail__body">
-              <div className="merch-detail__top">
-                <div className="section-heading section-heading--compact">
-                  <p className="eyebrow">Merch</p>
-                  <h2>{selectedItem.name}</h2>
-                </div>
-              </div>
-              {selectedItem.description && <p>{selectedItem.description}</p>}
-              <p className="price">{formatMoney(selectedItem.price)}</p>
-              {selectedItem.hasSizes ? (
-                <>
-                  <label className="merch-size-picker">
-                    Size
-                    <select
-                      disabled={!hasAvailableStock}
-                      value={selectedVariantId}
-                      onChange={(event) => {
-                        setSelectedVariantId(event.target.value);
-                        setError("");
-                      }}
-                    >
-                      <option value="">
-                        {hasAvailableStock ? "Choose size" : "No sizes in stock"}
-                      </option>
-                      {selectedItem.variants.map((variant) => (
-                        <option
-                          disabled={variant.stock <= 0}
-                          key={variant.id}
-                          value={variant.id}
-                        >
-                          {variant.label} - {variant.stock > 0 ? `${variant.stock} left` : "out of stock"}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {selectedVariant && (
-                    <p className="muted">Selected size: {selectedVariant.label}</p>
-                  )}
-                </>
-              ) : (
-                <p className="muted">
-                  {selectedVariant && selectedVariant.stock > 0
-                    ? `${selectedVariant.stock} in stock`
-                    : "Out of stock"}
-                </p>
-              )}
-              <button
-                className="primary-button"
-                disabled={!canRequestOrder}
-                onClick={() => {
-                  setError("");
-                  setIsOrderModalOpen(true);
-                }}
-                type="button"
-              >
-                Order Request
-              </button>
-            </div>
-          </article>
-        </>
+        </article>
       )}
 
       {isOrderModalOpen && selectedItem && selectedVariant && (
